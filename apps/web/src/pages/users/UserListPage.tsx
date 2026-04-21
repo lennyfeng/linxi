@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button, Card, Input, Select, Space, Table, Tag, Popconfirm, message, Tooltip, Typography,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, SearchOutlined, LockOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, SearchOutlined, LockOutlined, SyncOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '@/api/client';
 import UserFormDrawer from './UserFormDrawer';
@@ -29,6 +29,7 @@ interface Pagination {
 
 const UserListPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, page_size: 20, total: 0 });
   const [keyword, setKeyword] = useState('');
@@ -68,6 +69,20 @@ const UserListPage: React.FC = () => {
       fetchUsers(pagination.page, pagination.page_size);
     } catch {
       message.error('操作失败');
+    }
+  };
+
+  const handleSyncLingxing = async () => {
+    setSyncing(true);
+    try {
+      const res = await apiClient.post('/users/sync-lingxing');
+      const data = res.data?.data;
+      message.success(`同步完成：共 ${data?.synced ?? 0} 人，新建 ${data?.created ?? 0}，更新 ${data?.updated ?? 0}`);
+      fetchUsers(1, pagination.page_size);
+    } catch {
+      message.error('同步领星用户失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -124,9 +139,14 @@ const UserListPage: React.FC = () => {
       <Card
         title={<Typography.Title level={4} style={{ margin: 0 }}>用户管理</Typography.Title>}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingUser(null); setDrawerOpen(true); }}>
-            新建用户
-          </Button>
+          <Space>
+            <Button icon={<SyncOutlined spin={syncing} />} onClick={handleSyncLingxing} loading={syncing}>
+              同步领星用户
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingUser(null); setDrawerOpen(true); }}>
+              新建用户
+            </Button>
+          </Space>
         }
       >
         <Space style={{ marginBottom: 16 }} wrap>

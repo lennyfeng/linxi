@@ -23,11 +23,12 @@ import {
   updateUser,
   updateUserRoles,
 } from './service/users.service.js';
+import { syncLingxingUsers } from '../../external/lingxing/sync-users.js';
 
 export const usersModule = {
   name: 'users',
   description: 'Users, departments, roles and permissions',
-  routes: ['/users', '/users/:id', '/users/:id/enable', '/users/:id/disable', '/users/:id/reset-password', '/users/:id/roles', '/departments', '/departments/:id', '/roles', '/roles/:id', '/roles/:id/permissions', '/permissions'],
+  routes: ['/users', '/users/sync-lingxing', '/users/:id', '/users/:id/enable', '/users/:id/disable', '/users/:id/reset-password', '/users/:id/roles', '/departments', '/departments/:id', '/roles', '/roles/:id', '/roles/:id/permissions', '/permissions'],
 };
 
 export const handleUsersRoutes: RouteHandler = async (req, res, url, ctx) => {
@@ -35,6 +36,16 @@ export const handleUsersRoutes: RouteHandler = async (req, res, url, ctx) => {
 
   if (req.method === 'GET' && url.pathname === '/users') {
     sendJson(res, await getUsers(Object.fromEntries(url.searchParams.entries())), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/users/sync-lingxing') {
+    try {
+      const result = await syncLingxingUsers();
+      sendJson(res, result, responseOptions);
+    } catch (err: any) {
+      sendJson(res, { message: err.message || 'Sync failed' }, { ...responseOptions, statusCode: 500 });
+    }
     return true;
   }
 

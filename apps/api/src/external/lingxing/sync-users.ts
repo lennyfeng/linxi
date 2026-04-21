@@ -1,5 +1,8 @@
+import bcrypt from 'bcryptjs';
 import { lingxingRequest } from './client.js';
 import { query } from '../../database/index.js';
+
+const DEFAULT_PASSWORD = 'linxi123';
 
 interface LingxingUser {
   uid: string;
@@ -37,18 +40,19 @@ export async function syncLingxingUsers(): Promise<{ synced: number; created: nu
     if (existing[0]) {
       await query(
         `UPDATE users SET
-          name = ?,
+          display_name = ?,
           email = COALESCE(NULLIF(?, ''), email),
-          mobile = COALESCE(NULLIF(?, ''), mobile),
+          phone = COALESCE(NULLIF(?, ''), phone),
           status = ?
         WHERE id = ?`,
         [lxUser.realname || lxUser.username, lxUser.email, lxUser.mobile, status, existing[0].id],
       );
       updated++;
     } else {
+      const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
       await query(
-        `INSERT INTO users (username, name, email, mobile, source_type, lingxing_uid, status)
-         VALUES (?, ?, ?, ?, 'lingxing', ?, ?)`,
+        `INSERT INTO users (username, display_name, email, phone, lingxing_uid, status, password_hash, must_change_password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           lxUser.username || `lx_${lxUser.uid}`,
           lxUser.realname || lxUser.username,
@@ -56,6 +60,7 @@ export async function syncLingxingUsers(): Promise<{ synced: number; created: nu
           lxUser.mobile || null,
           lxUser.uid,
           status,
+          passwordHash,
         ],
       );
       created++;
