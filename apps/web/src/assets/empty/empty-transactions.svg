@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <rect x="50" y="25" width="100" height="14" rx="4" stroke="#5CDBD3" stroke-width="1.5"/>
+  <rect x="50" y="48" width="100" height="14" rx="4" stroke="#5CDBD3" stroke-width="1.5"/>
+  <rect x="50" y="71" width="100" height="14" rx="4" stroke="#5CDBD3" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <rect x="50" y="94" width="100" height="14" rx="4" stroke="#5CDBD3" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="100" y="140" text-anchor="middle" fill="#8C8C8C" font-size="12" font-family="sans-serif">No transactions</text>
+</svg>

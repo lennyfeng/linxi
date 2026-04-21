@@ -1,0 +1,35 @@
+{
+  "name": "@internal-platform/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "smoke": "node smoke-test.mjs",
+    "regression:write": "node write-regression.mjs",
+    "regression:error": "node error-regression.mjs",
+    "regression:auth-users": "node auth-users-regression.mjs",
+    "build": "echo api build pending",
+    "lint": "echo api lint pending"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.14.1",
+    "tsx": "^4.19.2",
+    "uuid": "^11.1.0",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}

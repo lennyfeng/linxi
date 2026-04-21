@@ -1,0 +1,95 @@
+:root {
+  /* Shadows */
+  --shadow-level-0: none;
+  --shadow-level-1: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-level-2: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-level-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --sidebar-border: #f0f2f5;
+
+  /* Header */
+  --header-height: 56px;
+
+  /* Content */
+  --page-padding: 24px;
+  --card-padding: 20px;
+  --section-gap: 16px;
+
+  /* Amount font */
+  --font-amount: 'DIN Alternate', 'Tabular Nums', ui-monospace, monospace;
+
+  /* Category icon colors */
+  --cat-operating: #ff6b6b;
+  --cat-procurement: #ffa502;
+  --cat-logistics: #feca57;
+  --cat-revenue: #00b894;
+  --cat-refund: #4ecdc4;
+  --cat-platform: #1890ff;
+  --cat-hr: #6c5ce7;
+  --cat-admin: #a29bfe;
+  --cat-marketing: #fda7df;
+  --cat-interest: #78e08f;
+  --cat-tax: #82ccdd;
+  --cat-other: #b8b8b8;
+
+  /* Animation */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Active menu item left border override */
+.ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #00b894;
+}
+
+/* Amount text utility */
+.amount-text {
+  font-family: var(--font-amount);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Page transition */
+.page-enter {
+  opacity: 0;
+}
+.page-enter-active {
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+/* Stats count-up animation */
+@keyframes count-up-flash {
+  0% { opacity: 0.5; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: count-up-flash 0.8s ease-out;
+}
+
+/* New row highlight */
+@keyframes row-highlight {
+  0% { background-color: #fef9e7; }
+  100% { background-color: transparent; }
+}
+.row-new {
+  animation: row-highlight 2s ease-out;
+}

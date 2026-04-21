@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Internal Platform Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .dash-app { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+    .dash-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .dash-topbar h1 { font-size: 1.6rem; margin: 0; }
+    .dash-topbar .actions { display: flex; gap: 0.5rem; align-items: center; }
+
+    .user-info { font-size: 0.85rem; color: var(--text-secondary, #666); margin-right: 0.75rem; }
+
+    .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .module-card { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 10px; padding: 1.25rem; transition: box-shadow .15s; }
+    .module-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .module-card h3 { font-size: 1rem; margin: 0 0 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+    .module-card .desc { font-size: 0.8rem; color: var(--text-secondary, #888); margin-bottom: 0.75rem; }
+    .module-card .stats { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
+    .module-card .stat { text-align: center; }
+    .module-card .stat .num { font-size: 1.3rem; font-weight: 700; display: block; }
+    .module-card .stat .label { font-size: 0.72rem; color: var(--text-secondary, #888); }
+    .module-card .go-btn { display: inline-block; padding: 0.35rem 0.75rem; border-radius: 5px; font-size: 0.8rem; text-decoration: none; border: 1px solid var(--border, #ddd); color: var(--text-primary, #333); background: var(--bg-card, #fff); transition: all .15s; }
+    .module-card .go-btn:hover { background: var(--primary, #2563eb); color: #fff; border-color: var(--primary, #2563eb); }
+
+    .module-icon { font-size: 1.2rem; }
+    .card-ledger .module-icon { color: #16a34a; }
+    .card-recon .module-icon { color: #d97706; }
+    .card-product .module-icon { color: #7c3aed; }
+    .card-auth .module-icon { color: #2563eb; }
+
+    .status-section { margin-bottom: 1.5rem; }
+    .status-section h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+    .health-card { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 8px; padding: 0.75rem; font-size: 0.82rem; }
+    .health-card .h-label { color: var(--text-secondary, #888); }
+    .health-card .h-value { font-weight: 600; margin-top: 0.25rem; }
+    .health-card .h-ok { color: #16a34a; }
+    .health-card .h-err { color: #dc2626; }
+
+    .hint-text { font-size: 0.8rem; color: var(--text-secondary, #888); }
+  </style>
+</head>
+<body>
+  <div class="dash-app">
+    <header class="dash-topbar">
+      <div>
+        <h1>Internal Platform</h1>
+        <p class="hint-text">Unified dashboard for all modules</p>
+      </div>
+      <div class="actions">
+        <span class="user-info" id="user-info"></span>
+        <button id="login-btn" class="primary-btn" type="button">Login</button>
+      </div>
+    </header>
+
+    <section class="status-section">
+      <h2>System Status</h2>
+      <div class="health-grid" id="health-grid">
+        <div class="health-card"><div class="h-label">API Server</div><div class="h-value" id="h-api">checking...</div></div>
+        <div class="health-card"><div class="h-label">Database</div><div class="h-value" id="h-db">checking...</div></div>
+        <div class="health-card"><div class="h-label">Modules</div><div class="h-value" id="h-modules">--</div></div>
+        <div class="health-card"><div class="h-label">Current User</div><div class="h-value" id="h-user">--</div></div>
+      </div>
+    </section>
+
+    <section class="module-grid" id="module-grid">
+      <div class="module-card card-ledger">
+        <h3><span class="module-icon">📒</span> Ledger</h3>
+        <p class="desc">Transaction recording, bank import, matching & confirmation</p>
+        <div class="stats">
+          <div class="stat"><span class="num" id="s-transactions">--</span><span class="label">Transactions</span></div>
+          <div class="stat"><span class="num" id="s-accounts">--</span><span class="label">Accounts</span></div>
+          <div class="stat"><span class="num" id="s-imports">--</span><span class="label">Import Batches</span></div>
+        </div>
+        <a href="/" class="go-btn">Open Ledger →</a>
+      </div>
+
+      <div class="module-card card-recon">
+        <h3><span class="module-icon">🔗</span> Reconciliation</h3>
+        <p class="desc">Purchase, invoice, payment & delivery relation tracing</p>
+        <div class="stats">
+          <div class="stat"><span class="num" id="s-recon-matched">--</span><span class="label">Matched</span></div>
+          <div class="stat"><span class="num" id="s-recon-partial">--</span><span class="label">Partial</span></div>
+          <div class="stat"><span class="num" id="s-recon-pending">--</span><span class="label">Pending</span></div>
+        </div>
+        <a href="/recon" class="go-btn">Open Reconciliation →</a>
+      </div>
+
+      <div class="module-card card-product">
+        <h3><span class="module-icon">🧪</span> Product Development</h3>
+        <p class="desc">Project lifecycle, approval, sampling & Lingxing sync</p>
+        <div class="stats">
+          <div class="stat"><span class="num" id="s-projects">--</span><span class="label">Projects</span></div>
+          <div class="stat"><span class="num" id="s-synced">--</span><span class="label">Synced</span></div>
+        </div>
+        <a href="/newproduct" class="go-btn">Open Product Dev →</a>
+      </div>
+
+      <div class="module-card card-auth">
+        <h3><span class="module-icon">🔐</span> Users & Permissions</h3>
+        <p class="desc">User management, roles, departments & access control</p>
+        <div class="stats">
+          <div class="stat"><span class="num" id="s-users">--</span><span class="label">Users</span></div>
+          <div class="stat"><span class="num" id="s-roles">--</span><span class="label">Roles</span></div>
+          <div class="stat"><span class="num" id="s-departments">--</span><span class="label">Departments</span></div>
+        </div>
+        <a href="/admin" class="go-btn">Open Admin →</a>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/dashboard.js"></script>
+</body>
+</html>

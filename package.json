@@ -1,0 +1,16 @@
+{
+  "name": "internal-platform-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @internal-platform/api",
+    "dev:api": "npm run dev -w @internal-platform/api",
+    "dev:web": "npm run dev -w @internal-platform/web",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  }
+}

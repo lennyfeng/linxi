@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reconciliation System</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .recon-app { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    .recon-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .recon-topbar h1 { font-size: 1.5rem; margin: 0; }
+    .recon-topbar .nav-links { display: flex; gap: 0.75rem; }
+    .recon-topbar .nav-links a { color: var(--text-secondary, #666); text-decoration: none; font-size: 0.85rem; }
+    .recon-topbar .nav-links a:hover { color: var(--text-primary, #222); }
+
+    .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .overview-card { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 8px; padding: 1rem; }
+    .overview-card .label { font-size: 0.8rem; color: var(--text-secondary, #888); }
+    .overview-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+    .overview-card.matched .value { color: #16a34a; }
+    .overview-card.partial .value { color: #d97706; }
+    .overview-card.pending .value { color: #dc2626; }
+
+    .recon-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border, #e5e5e5); margin-bottom: 1rem; }
+    .recon-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; font-size: 0.85rem; color: var(--text-secondary, #666); border-bottom: 2px solid transparent; }
+    .recon-tab.active { color: var(--text-primary, #222); border-bottom-color: var(--primary, #2563eb); font-weight: 600; }
+
+    .recon-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .recon-list-panel, .recon-detail-panel { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 8px; padding: 1rem; min-height: 400px; }
+    .recon-list-panel h3, .recon-detail-panel h3 { font-size: 0.95rem; margin: 0 0 0.75rem; }
+
+    .recon-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .recon-table th, .recon-table td { padding: 0.4rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border, #eee); }
+    .recon-table th { font-weight: 600; color: var(--text-secondary, #666); }
+    .recon-table tr { cursor: pointer; }
+    .recon-table tr:hover { background: var(--bg-hover, #f8f8f8); }
+    .recon-table tr.selected { background: var(--bg-selected, #eff6ff); }
+
+    .status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+    .status-badge.matched { background: #dcfce7; color: #166534; }
+    .status-badge.partial { background: #fef3c7; color: #92400e; }
+    .status-badge.pending { background: #fee2e2; color: #991b1b; }
+
+    .detail-section { margin-bottom: 1rem; }
+    .detail-section h4 { font-size: 0.85rem; margin: 0 0 0.5rem; color: var(--text-secondary, #555); }
+    .detail-kv { display: grid; grid-template-columns: 100px 1fr; gap: 0.25rem 0.5rem; font-size: 0.82rem; margin-bottom: 0.75rem; }
+    .detail-kv .k { color: var(--text-secondary, #888); }
+    .detail-kv .v { font-weight: 500; }
+
+    .relation-list { font-size: 0.82rem; }
+    .relation-item { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border, #eee); }
+    .relation-item .info { flex: 1; }
+    .relation-item .actions button { font-size: 0.75rem; margin-left: 0.4rem; }
+
+    .add-relation-form { margin-top: 0.75rem; padding: 0.75rem; background: var(--bg-hover, #f8f8f8); border-radius: 6px; font-size: 0.82rem; }
+    .add-relation-form .form-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .add-relation-form input, .add-relation-form select { padding: 0.3rem 0.5rem; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: 0.82rem; }
+    .add-relation-form input[type="number"] { width: 100px; }
+
+    .hint-text { font-size: 0.8rem; color: var(--text-secondary, #888); padding: 0.5rem 0; }
+    .error-text { color: #dc2626; }
+
+    @media (max-width: 900px) { .recon-content { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="recon-app">
+    <header class="recon-topbar">
+      <div>
+        <h1>Reconciliation System</h1>
+        <p class="hint-text">Purchase → Invoice → Payment Request → Delivery bidirectional tracing</p>
+      </div>
+      <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/">Ledger</a>
+        <a href="/newproduct">Product Dev</a>
+        <a href="/admin">Admin</a>
+        <button id="login-btn" class="primary-btn" type="button">Login</button>
+      </div>
+    </header>
+
+    <section class="overview-grid" id="overview-grid">
+      <article class="overview-card matched"><div class="label">Matched</div><div class="value" id="ov-matched">--</div></article>
+      <article class="overview-card partial"><div class="label">Partial</div><div class="value" id="ov-partial">--</div></article>
+      <article class="overview-card pending"><div class="label">Pending</div><div class="value" id="ov-pending">--</div></article>
+      <article class="overview-card"><div class="label">Total Relations</div><div class="value" id="ov-relations">--</div></article>
+    </section>
+
+    <nav class="recon-tabs">
+      <button class="recon-tab active" data-tab="purchase">Purchase Orders</button>
+      <button class="recon-tab" data-tab="payment">Payment Requests</button>
+      <button class="recon-tab" data-tab="delivery">Delivery Orders</button>
+      <button class="recon-tab" data-tab="invoice">Invoices</button>
+    </nav>
+
+    <section class="recon-content">
+      <div class="recon-list-panel">
+        <h3 id="list-title">Purchase Orders</h3>
+        <p class="hint-text" id="list-hint">Loading...</p>
+        <table class="recon-table">
+          <thead id="list-thead"></thead>
+          <tbody id="list-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="recon-detail-panel">
+        <h3 id="detail-title">Detail</h3>
+        <div id="detail-content"><p class="hint-text">Select an item from the list to view detail.</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/reconciliation.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+/* Page transition: 200ms fade */
+.page-enter {
+  opacity: 0;
+}
+.page-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+/* Stats count-up animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stat-count-up {
+  animation: countUp 400ms ease-out forwards;
+}
+
+/* Card hover lift */
+.card-hover-lift {
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.card-hover-lift:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Slide in from right (for drawers / panels) */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.slide-in-right {
+  animation: slideInRight 250ms ease-out forwards;
+}
+
+/* Fade scale (for modals) */
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.fade-scale {
+  animation: fadeScale 200ms ease-out forwards;
+}

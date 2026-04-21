@@ -1,0 +1,146 @@
+export const mockAccounts = [
+  {
+    id: 1,
+    accountName: '工商银行人民币户',
+    accountType: 'bank',
+    accountSourceType: 'bank',
+    currency: 'CNY',
+    openingBalance: 50000,
+    currentBalance: 68230,
+    status: 'active',
+  },
+  {
+    id: 2,
+    accountName: '空中云汇美元户',
+    accountType: 'wallet',
+    accountSourceType: 'airwallex',
+    currency: 'USD',
+    openingBalance: 10000,
+    currentBalance: 8450,
+    status: 'active',
+  },
+];
+
+export const mockCategories = [
+  { id: 1, parentId: null, categoryName: '运营费用', categoryType: 'expense', sortNo: 1, status: 'active' },
+  { id: 2, parentId: 1, categoryName: '广告费', categoryType: 'expense', sortNo: 2, status: 'active' },
+  { id: 3, parentId: null, categoryName: '销售回款', categoryType: 'income', sortNo: 3, status: 'active' },
+];
+
+export const mockTransactions = [
+  {
+    id: 1,
+    transactionNo: 'TXN-20260418-001',
+    transactionType: 'expense',
+    transactionDate: '2026-04-18',
+    accountId: 1,
+    amount: 1500,
+    currency: 'CNY',
+    amountCny: 1500,
+    paymentAccount: 'ICBC-CNY-001',
+    categoryId: 2,
+    counterpartyName: '某广告服务商',
+    projectName: '广告投放',
+    summary: '广告费支付',
+    reimbursementRequired: 0,
+    reimbursementStatus: 'none',
+    invoiceRequired: 1,
+  },
+  {
+    id: 2,
+    transactionNo: 'TXN-20260418-002',
+    transactionType: 'income',
+    transactionDate: '2026-04-18',
+    accountId: 2,
+    amount: 1200,
+    currency: 'USD',
+    exchangeRate: 7.2,
+    amountCny: 8640,
+    paymentAccount: 'AIRWALLEX-USD-001',
+    categoryId: 3,
+    counterpartyName: '平台回款',
+    projectName: 'Amazon',
+    summary: '店铺回款',
+    reimbursementRequired: 0,
+    reimbursementStatus: 'none',
+    invoiceRequired: 0,
+  },
+];
+
+export const mockImportBatches = [
+  {
+    id: 1,
+    batchNo: 'IMP-20260418-001',
+    sourceType: 'bank',
+    fileName: 'bank_20260418.xlsx',
+    status: 'confirmed',
+    importedBy: 1,
+  },
+  {
+    id: 2,
+    batchNo: 'IMP-20260418-002',
+    sourceType: 'airwallex',
+    fileName: 'airwallex_20260418.csv',
+    status: 'draft',
+    importedBy: 1,
+  },
+];
+
+export const mockExternalTransactions = [
+  {
+    id: 1,
+    importBatchId: 1,
+    sourceType: 'bank',
+    externalNo: 'BANK-ROW-001',
+    transactionDate: '2026-04-18',
+    amount: 1000,
+    currency: 'CNY',
+    paymentAccount: 'ICBC-CNY-001',
+    counterpartyName: '某广告服务商',
+    bankSummary: '广告费',
+    matchStatus: 'matched',
+  },
+  {
+    id: 2,
+    importBatchId: 1,
+    sourceType: 'bank',
+    externalNo: 'BANK-ROW-002',
+    transactionDate: '2026-04-18',
+    amount: 500,
+    currency: 'CNY',
+    paymentAccount: 'ICBC-CNY-001',
+    counterpartyName: '某广告服务商',
+    bankSummary: '广告费补扣',
+    matchStatus: 'matched',
+  },
+  {
+    id: 3,
+    importBatchId: 2,
+    sourceType: 'airwallex',
+    externalNo: 'AWX-ROW-001',
+    transactionDate: '2026-04-18',
+    amount: 1200,
+    currency: 'USD',
+    paymentAccount: 'AIRWALLEX-USD-001',
+    counterpartyName: '平台回款',
+    bankSummary: 'Amazon payout',
+    matchStatus: 'pending',
+  },
+];
+
+export const mockMatches = [
+  {
+    id: 1,
+    transactionId: 1,
+    externalTransactionId: 1,
+    matchStatus: 'confirmed',
+    confirmedBy: 1,
+  },
+  {
+    id: 2,
+    transactionId: 1,
+    externalTransactionId: 2,
+    matchStatus: 'confirmed',
+    confirmedBy: 1,
+  },
+];

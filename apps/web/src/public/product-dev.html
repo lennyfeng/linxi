@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Development</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .pd-app { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    .pd-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .pd-topbar h1 { font-size: 1.5rem; margin: 0; }
+    .nav-links { display: flex; gap: 0.75rem; align-items: center; }
+    .nav-links a { color: var(--text-secondary, #666); text-decoration: none; font-size: 0.85rem; }
+
+    .pd-content { display: grid; grid-template-columns: 1fr 1.2fr; gap: 1.5rem; }
+    .pd-panel { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 8px; padding: 1rem; min-height: 500px; }
+    .pd-panel h3 { font-size: 0.95rem; margin: 0 0 0.75rem; }
+
+    .pd-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .pd-table th, .pd-table td { padding: 0.4rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border, #eee); }
+    .pd-table th { font-weight: 600; color: var(--text-secondary, #666); }
+    .pd-table tr { cursor: pointer; }
+    .pd-table tr:hover { background: var(--bg-hover, #f8f8f8); }
+    .pd-table tr.selected { background: var(--bg-selected, #eff6ff); }
+
+    .stage-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+    .stage-badge.approved { background: #dcfce7; color: #166534; }
+    .stage-badge.pending { background: #fef3c7; color: #92400e; }
+    .stage-badge.rejected { background: #fee2e2; color: #991b1b; }
+    .stage-badge.synced { background: #dbeafe; color: #1e40af; }
+    .stage-badge.sampling { background: #f3e8ff; color: #6b21a8; }
+
+    .detail-section { margin-bottom: 1rem; }
+    .detail-section h4 { font-size: 0.85rem; margin: 0 0 0.5rem; color: var(--text-secondary, #555); }
+    .detail-kv { display: grid; grid-template-columns: 120px 1fr; gap: 0.25rem 0.5rem; font-size: 0.82rem; margin-bottom: 0.75rem; }
+    .detail-kv .k { color: var(--text-secondary, #888); }
+    .detail-kv .v { font-weight: 500; }
+
+    .workflow-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+    .workflow-actions button { font-size: 0.8rem; }
+
+    .presync-check { padding: 0.75rem; background: var(--bg-hover, #f8f8f8); border-radius: 6px; font-size: 0.82rem; margin: 0.5rem 0; }
+    .presync-check .pass { color: #16a34a; }
+    .presync-check .fail { color: #dc2626; }
+
+    .sub-list { font-size: 0.82rem; }
+    .sub-item { padding: 0.35rem 0; border-bottom: 1px solid var(--border, #eee); }
+
+    .hint-text { font-size: 0.8rem; color: var(--text-secondary, #888); padding: 0.5rem 0; }
+    .error-text { color: #dc2626; }
+
+    @media (max-width: 900px) { .pd-content { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="pd-app">
+    <header class="pd-topbar">
+      <div>
+        <h1>Product Development</h1>
+        <p class="hint-text">Project lifecycle: Research → Quote → Approval → Sampling → Sync to Lingxing</p>
+      </div>
+      <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/">Ledger</a>
+        <a href="/recon">Reconciliation</a>
+        <a href="/admin">Admin</a>
+        <button id="login-btn" class="primary-btn" type="button">Login</button>
+      </div>
+    </header>
+
+    <section class="pd-content">
+      <div class="pd-panel">
+        <h3>Projects</h3>
+        <p class="hint-text" id="list-hint">Loading...</p>
+        <table class="pd-table">
+          <thead><tr><th>Code</th><th>Product</th><th>Market</th><th>Status</th></tr></thead>
+          <tbody id="project-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pd-panel">
+        <h3 id="detail-title">Project Detail</h3>
+        <div id="detail-content"><p class="hint-text">Select a project from the list.</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/product-dev.js"></script>
+</body>
+</html>

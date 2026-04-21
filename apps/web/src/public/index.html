@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>新流水记账工作台</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="ledger-app">
+    <header class="topbar">
+      <div>
+        <div class="brand-tag">SINGLE LEDGER WORKSPACE</div>
+        <h1>新流水记账工作台</h1>
+        <p>参考随手记的高信息密度与批量处理习惯，重做成面向财务日常操作的流水工作台。</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/dashboard" class="ghost-btn" style="text-decoration:none;display:inline-block;">Dashboard</a>
+        <a href="/recon" class="ghost-btn" style="text-decoration:none;display:inline-block;">Reconciliation</a>
+        <a href="/newproduct" class="ghost-btn" style="text-decoration:none;display:inline-block;">Product Dev</a>
+        <a href="/admin" class="ghost-btn" style="text-decoration:none;display:inline-block;">Admin</a>
+        <button id="refresh-btn" class="ghost-btn" type="button">刷新数据</button>
+        <button id="login-btn" class="primary-btn" type="button">开发登录</button>
+      </div>
+    </header>
+
+    <main class="ledger-shell">
+      <section class="summary-strip" id="summary-strip">
+        <article class="summary-card summary-balance">
+          <span>当前结余</span>
+          <strong id="metric-balance">--</strong>
+          <small>以当前筛选结果折算人民币汇总</small>
+        </article>
+        <article class="summary-card summary-income">
+          <span>收入</span>
+          <strong id="metric-income">--</strong>
+          <small>包含收入与退款冲减后的净流入</small>
+        </article>
+        <article class="summary-card summary-expense">
+          <span>支出</span>
+          <strong id="metric-expense">--</strong>
+          <small>当前筛选范围内的支出总额</small>
+        </article>
+        <article class="summary-card summary-count">
+          <span>流水笔数</span>
+          <strong id="metric-count">--</strong>
+          <small>用于核对分页和过滤结果</small>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <aside class="left-panel panel-card">
+          <div class="panel-head">
+            <div>
+              <div class="panel-eyebrow">FILTERS</div>
+              <h2>筛选区</h2>
+            </div>
+            <button id="reset-btn" class="text-btn" type="button">重置</button>
+          </div>
+
+          <form id="filter-form" class="filter-form">
+            <label class="field-block">
+              <span>关键词</span>
+              <input id="keyword" name="keyword" type="text" placeholder="流水号 / 商家 / 项目 / 摘要 / 付款账号" />
+            </label>
+
+            <div class="field-row two-cols">
+              <label class="field-block">
+                <span>交易类型</span>
+                <select id="transactionType" name="transactionType">
+                  <option value="">全部</option>
+                  <option value="expense">支出</option>
+                  <option value="income">收入</option>
+                  <option value="transfer">转账</option>
+                  <option value="refund">退款</option>
+                </select>
+              </label>
+              <label class="field-block">
+                <span>报销状态</span>
+                <select id="reimbursementStatus" name="reimbursementStatus">
+                  <option value="">全部</option>
+                  <option value="none">未报销</option>
+                  <option value="pending">审批中</option>
+                  <option value="approved">已通过</option>
+                  <option value="rejected">已驳回</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="field-row two-cols">
+              <label class="field-block">
+                <span>开始日期</span>
+                <input id="startDate" name="startDate" type="date" />
+              </label>
+              <label class="field-block">
+                <span>结束日期</span>
+                <input id="endDate" name="endDate" type="date" />
+              </label>
+            </div>
+
+            <div class="field-row two-cols">
+              <label class="field-block">
+                <span>账户</span>
+                <select id="accountId" name="accountId">
+                  <option value="">全部账户</option>
+                </select>
+              </label>
+              <label class="field-block">
+                <span>分类</span>
+                <select id="categoryId" name="categoryId">
+                  <option value="">全部分类</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="action-stack">
+              <button class="primary-btn" type="submit">应用筛选</button>
+              <button id="saved-view-btn" class="ghost-btn" type="button">保存为常用视图</button>
+              <button id="overwrite-saved-view-btn" class="ghost-btn" type="button">覆盖当前视图</button>
+            </div>
+          </form>
+
+          <div class="quick-tags" id="quick-tags">
+            <button class="tag-chip active" type="button" data-range="current-month">本月</button>
+            <button class="tag-chip" type="button" data-range="last-30">近30天</button>
+            <button class="tag-chip" type="button" data-range="this-year">本年</button>
+            <button class="tag-chip" type="button" data-range="clear">清空日期</button>
+          </div>
+
+          <div class="saved-views-panel">
+            <div class="panel-eyebrow">SAVED VIEWS</div>
+            <div id="saved-views-list" class="saved-views-list">
+              <div class="stack-empty">当前还没有常用视图</div>
+            </div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <div class="dimension-box">
+            <div class="panel-eyebrow">ACCOUNTS</div>
+            <h3>账户速览</h3>
+            <div id="account-overview" class="mini-list"></div>
+          </div>
+        </aside>
+
+        <section class="center-panel panel-card">
+          <div id="entry-panel" class="entry-panel hidden">
+            <div class="entry-mode-switch">
+              <button id="single-entry-mode-btn" class="mode-btn active" type="button">记一笔</button>
+              <button id="multi-entry-mode-btn" class="mode-btn" type="button">记多笔</button>
+              <button id="import-confirm-mode-btn" class="mode-btn" type="button">导入确认</button>
+            </div>
+
+            <div id="single-entry-panel">
+              <div class="panel-head wide-head">
+                <div>
+                  <div class="panel-eyebrow">NEW ENTRY</div>
+                  <h2>记一笔</h2>
+                  <p id="entry-hint" class="hint-text">先录入核心字段，形成第一版真实新增闭环。</p>
+                </div>
+                <button id="close-entry-btn" class="ghost-btn small-btn" type="button">返回列表</button>
+              </div>
+
+              <form id="entry-form" class="entry-form">
+                <div class="entry-type-tabs">
+                  <button class="entry-type-tab active" type="button" data-entry-type="expense">支出</button>
+                  <button class="entry-type-tab" type="button" data-entry-type="income">收入</button>
+                  <button class="entry-type-tab" type="button" data-entry-type="transfer">转账</button>
+                  <button class="entry-type-tab" type="button" data-entry-type="refund">退款</button>
+                </div>
+
+                <div class="field-row two-cols">
+                  <label class="field-block">
+                    <span>金额 *</span>
+                    <input id="entry-amount" name="amount" type="number" min="0" step="0.01" placeholder="请输入金额" required />
+                  </label>
+                  <label class="field-block">
+                    <span>记录时间 *</span>
+                    <input id="entry-date" name="transactionDate" type="date" required />
+                  </label>
+                </div>
+
+                <div class="field-row two-cols">
+                  <label class="field-block">
+                    <span>账户 *</span>
+                    <select id="entry-account-id" name="accountId" required>
+                      <option value="">请选择账户</option>
+                    </select>
+                  </label>
+                  <label class="field-block">
+                    <span>分类 *</span>
+                    <select id="entry-category-id" name="categoryId" required>
+                      <option value="">请选择分类</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="field-row two-cols">
+                  <label class="field-block">
+                    <span>商家 / 往来单位</span>
+                    <input id="entry-counterparty" name="counterpartyName" type="text" placeholder="如：供应商 / 平台 / 商家" />
+                  </label>
+                  <label class="field-block">
+                    <span>项目</span>
+                    <input id="entry-project" name="projectName" type="text" placeholder="可选填写" />
+                  </label>
+                </div>
+
+                <div class="field-row two-cols">
+                  <label class="field-block">
+                    <span>付款账号</span>
+                    <input id="entry-payment-account" name="paymentAccount" type="text" placeholder="支出流水建议填写" />
+                  </label>
+                  <label class="field-block checkbox-field">
+                    <span>需要报销</span>
+                    <input id="entry-reimbursement-required" name="reimbursementRequired" type="checkbox" />
+                  </label>
+                </div>
+
+                <label class="field-block">
+                  <span>摘要 *</span>
+                  <input id="entry-summary" name="summary" type="text" placeholder="例如：支付样品费 / 收到退款 / 广告投放" required />
+                </label>
+
+                <label class="field-block">
+                  <span>备注</span>
+                  <textarea id="entry-remark" name="remark" placeholder="补充说明、匹配依据、业务背景"></textarea>
+                </label>
+
+                <div class="entry-actions">
+                  <button id="submit-entry-btn" class="primary-btn" type="submit">保存</button>
+                  <button id="submit-continue-btn" class="ghost-btn" type="button">保存并继续</button>
+                </div>
+              </form>
+            </div>
+
+            <div id="multi-entry-panel" class="hidden">
+              <div class="panel-head wide-head">
+                <div>
+                  <div class="panel-eyebrow">MULTI ENTRY</div>
+                  <h2>记多笔</h2>
+                  <p id="multi-entry-hint" class="hint-text">按行补全金额、日期、账户、分类和摘要后，可批量保存。</p>
+                </div>
+                <button id="close-multi-entry-btn" class="ghost-btn small-btn" type="button">返回列表</button>
+              </div>
+
+              <div class="batch-toolbar">
+                <button id="add-row-btn" class="primary-btn" type="button">新增一行</button>
+                <button id="copy-last-row-btn" class="ghost-btn" type="button">复制上一行</button>
+                <button id="save-all-rows-btn" class="ghost-btn" type="button">全部保存</button>
+              </div>
+
+              <div class="multi-table-frame">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>交易类型</th>
+                      <th>金额</th>
+                      <th>日期</th>
+                      <th>账户</th>
+                      <th>分类</th>
+                      <th>摘要</th>
+                      <th>商家</th>
+                      <th>项目</th>
+                      <th>付款账号</th>
+                      <th>需报销</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="multi-entry-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="import-confirm-panel" class="hidden">
+              <div class="panel-head wide-head">
+                <div>
+                  <div class="panel-eyebrow">IMPORT CONFIRM</div>
+                  <h2>导入确认</h2>
+                  <p id="import-confirm-hint" class="hint-text">模拟银行 / 空中云汇导入结果，按“记多笔”节奏补全信息后确认入账。</p>
+                </div>
+                <button id="close-import-confirm-btn" class="ghost-btn small-btn" type="button">返回列表</button>
+              </div>
+
+              <section class="import-batch-card">
+                <div class="batch-summary-grid">
+                  <div><span>导入批次</span><strong id="import-batch-no">IMP-DEMO-20260419</strong></div>
+                  <div><span>来源</span><strong id="import-source-type">bank</strong></div>
+                  <div><span>待确认条数</span><strong id="import-pending-count">0</strong></div>
+                  <div><span>候选匹配</span><strong id="import-matched-count">0</strong></div>
+                </div>
+                <div class="batch-detail-grid">
+                  <div><span>文件名</span><strong id="import-file-name">--</strong></div>
+                  <div><span>上传人</span><strong id="import-uploader">--</strong></div>
+                  <div><span>导入时间</span><strong id="import-created-at">--</strong></div>
+                  <div><span>已确认 / 失败</span><strong id="import-confirm-stats">0 / 0</strong></div>
+                </div>
+                <div class="progress-block">
+                  <div class="progress-meta">
+                    <span>确认进度</span>
+                    <strong id="import-progress-text">0%</strong>
+                  </div>
+                  <div class="progress-rail">
+                    <div id="import-progress-bar" class="progress-bar"></div>
+                  </div>
+                </div>
+                <div class="batch-toolbar">
+                  <button id="load-demo-import-btn" class="primary-btn" type="button">加载示例导入</button>
+                  <button id="mark-all-create-btn" class="ghost-btn" type="button">全部标记为待新增</button>
+                  <button id="confirm-import-btn" class="ghost-btn" type="button">确认入账</button>
+                </div>
+                <div class="import-legend">
+                  <span class="legend-pill legend-match">候选匹配</span>
+                  <span class="legend-pill legend-create">待新增</span>
+                  <span class="legend-pill legend-manual">人工确认</span>
+                </div>
+              </section>
+
+              <div class="multi-table-frame import-table-frame">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>导入来源</th>
+                      <th>外部流水号</th>
+                      <th>日期</th>
+                      <th>金额</th>
+                      <th>匹配结果</th>
+                      <th>候选说明</th>
+                      <th>行状态</th>
+                      <th>交易类型</th>
+                      <th>账户</th>
+                      <th>分类</th>
+                      <th>摘要</th>
+                      <th>商家</th>
+                      <th>项目</th>
+                      <th>付款账号</th>
+                    </tr>
+                  </thead>
+                  <tbody id="import-confirm-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="list-panel">
+            <div id="import-batches-panel" class="import-batches-panel hidden">
+              <div class="panel-head wide-head">
+                <div>
+                  <div class="panel-eyebrow">IMPORT BATCHES</div>
+                  <h2>导入批次</h2>
+                  <p id="batch-list-hint">先看批次，再进入对应导入确认页处理待确认流水。</p>
+                </div>
+                <button id="close-batches-btn" class="ghost-btn small-btn" type="button">返回流水列表</button>
+              </div>
+
+              <div class="batch-toolbar">
+                <button id="load-demo-batches-btn" class="primary-btn" type="button">加载示例批次</button>
+                <button id="open-import-confirm-from-batches-btn" class="ghost-btn" type="button">进入当前批次确认</button>
+              </div>
+
+              <div class="batch-task-strip">
+                <article class="task-card">
+                  <span>待处理批次</span>
+                  <strong id="batch-pending-total">0</strong>
+                </article>
+                <article class="task-card">
+                  <span>部分确认批次</span>
+                  <strong id="batch-partial-total">0</strong>
+                </article>
+                <article class="task-card">
+                  <span>已完成批次</span>
+                  <strong id="batch-confirmed-total">0</strong>
+                </article>
+                <article class="task-card">
+                  <span>失败条数</span>
+                  <strong id="batch-failed-total">0</strong>
+                </article>
+              </div>
+
+              <div class="batch-filter-chips" id="batch-filter-chips">
+                <button class="tag-chip active" type="button" data-batch-filter="all">全部</button>
+                <button class="tag-chip" type="button" data-batch-filter="pending_confirm">待确认</button>
+                <button class="tag-chip" type="button" data-batch-filter="partially_confirmed">部分确认</button>
+                <button class="tag-chip" type="button" data-batch-filter="confirmed">已完成</button>
+              </div>
+
+              <div class="table-frame">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>批次号</th>
+                      <th>来源</th>
+                      <th>文件名</th>
+                      <th>状态</th>
+                      <th>总数</th>
+                      <th>已确认</th>
+                      <th>失败</th>
+                      <th>候选匹配</th>
+                      <th>进度</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="import-batches-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="transactions-panel">
+              <div class="panel-head wide-head">
+                <div>
+                  <div class="panel-eyebrow">TRANSACTIONS</div>
+                  <h2>流水列表</h2>
+                  <p id="list-hint" class="hint-text">先登录，再按筛选查看流水并点击右侧详情。</p>
+                </div>
+                <div class="list-actions">
+                  <button id="new-entry-btn" class="primary-btn" type="button">记一笔</button>
+                  <button id="batch-entry-btn" class="ghost-btn" type="button">记多笔</button>
+                </div>
+              </div>
+
+              <div class="table-toolbar">
+                <div id="active-filters" class="active-filters"></div>
+                <div class="pager-inline">
+                  <button id="prev-page" class="ghost-btn small-btn" type="button">上一页</button>
+                  <span id="page-info">第 1 页</span>
+                  <button id="next-page" class="ghost-btn small-btn" type="button">下一页</button>
+                </div>
+              </div>
+
+              <div class="table-frame">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>类型</th>
+                      <th>分类 / 摘要</th>
+                      <th>金额</th>
+                      <th>账户</th>
+                      <th>商家 / 项目</th>
+                      <th>时间</th>
+                      <th>状态</th>
+                    </tr>
+                  </thead>
+                  <tbody id="transaction-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="right-panel panel-card">
+          <div class="panel-head">
+            <div>
+              <div class="panel-eyebrow">DETAIL</div>
+              <h2>流水详情</h2>
+            </div>
+          </div>
+
+          <div id="detail-empty" class="detail-empty">
+            <strong>请选择一条流水</strong>
+            <p>右侧详情会显示账户、摘要、附件、匹配记录和报销状态，方便财务快速核对。</p>
+          </div>
+
+          <div id="detail-card" class="detail-card hidden">
+            <div class="detail-header">
+              <div>
+                <span id="detail-type" class="type-pill">--</span>
+                <h3 id="detail-title">--</h3>
+                <p id="detail-subtitle">--</p>
+              </div>
+              <div class="detail-header-actions">
+                <strong id="detail-amount">--</strong>
+                <div class="detail-action-row">
+                  <button id="edit-detail-btn" class="ghost-btn small-btn" type="button">编辑</button>
+                  <button id="delete-detail-btn" class="ghost-btn small-btn" type="button">删除</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="detail-grid" class="detail-grid"></div>
+
+            <form id="detail-edit-form" class="entry-form hidden">
+              <div class="field-row two-cols">
+                <label class="field-block">
+                  <span>交易类型</span>
+                  <select id="detail-edit-type">
+                    <option value="expense">支出</option>
+                    <option value="income">收入</option>
+                    <option value="transfer">转账</option>
+                    <option value="refund">退款</option>
+                  </select>
+                </label>
+                <label class="field-block">
+                  <span>日期</span>
+                  <input id="detail-edit-date" type="date" />
+                </label>
+              </div>
+              <div class="field-row two-cols">
+                <label class="field-block">
+                  <span>金额</span>
+                  <input id="detail-edit-amount" type="number" min="0" step="0.01" />
+                </label>
+                <label class="field-block">
+                  <span>账户</span>
+                  <select id="detail-edit-account"></select>
+                </label>
+              </div>
+              <div class="field-row two-cols">
+                <label class="field-block">
+                  <span>分类</span>
+                  <select id="detail-edit-category"></select>
+                </label>
+                <label class="field-block">
+                  <span>报销状态</span>
+                  <select id="detail-edit-reimbursement-status">
+                    <option value="none">未报销</option>
+                    <option value="pending">审批中</option>
+                    <option value="approved">已通过</option>
+                    <option value="rejected">已驳回</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field-block">
+                <span>摘要</span>
+                <input id="detail-edit-summary" type="text" />
+              </label>
+              <div class="field-row two-cols">
+                <label class="field-block">
+                  <span>商家</span>
+                  <input id="detail-edit-counterparty" type="text" />
+                </label>
+                <label class="field-block">
+                  <span>项目</span>
+                  <input id="detail-edit-project" type="text" />
+                </label>
+              </div>
+              <div class="field-row two-cols">
+                <label class="field-block">
+                  <span>付款账号</span>
+                  <input id="detail-edit-payment-account" type="text" />
+                </label>
+                <label class="field-block">
+                  <span>备注</span>
+                  <input id="detail-edit-remark" type="text" />
+                </label>
+              </div>
+              <div class="detail-action-row">
+                <button id="save-detail-btn" class="primary-btn" type="submit">保存修改</button>
+                <button id="cancel-edit-detail-btn" class="ghost-btn" type="button">取消编辑</button>
+              </div>
+            </form>
+
+            <div class="detail-quick-actions">
+              <span>报销快捷状态</span>
+              <div class="quick-status-row">
+                <button class="ghost-btn small-btn" type="button" data-quick-reimbursement="none">未报销</button>
+                <button class="ghost-btn small-btn" type="button" data-quick-reimbursement="pending">审批中</button>
+                <button class="ghost-btn small-btn" type="button" data-quick-reimbursement="approved">已通过</button>
+                <button class="ghost-btn small-btn" type="button" data-quick-reimbursement="rejected">已驳回</button>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="section-title section-title-row">
+                <span>附件</span>
+                <label class="ghost-btn small-btn upload-attachment-btn" for="detail-attachment-input">上传附件</label>
+                <input id="detail-attachment-input" type="file" class="hidden-file-input" />
+              </div>
+              <div id="detail-attachments" class="stack-list"></div>
+            </div>
+
+            <div class="detail-section">
+              <div class="section-title section-title-row">
+                <span>匹配记录</span>
+                <button id="add-match-record-btn" class="ghost-btn small-btn" type="button">新增匹配</button>
+              </div>
+              <form id="detail-match-form" class="entry-form hidden detail-inline-form">
+                <div class="field-row two-cols">
+                  <label class="field-block">
+                    <span>外部流水号</span>
+                    <input id="detail-match-external-id" type="text" />
+                  </label>
+                  <label class="field-block">
+                    <span>匹配状态</span>
+                    <select id="detail-match-status">
+                      <option value="confirmed">confirmed</option>
+                      <option value="pending">pending</option>
+                      <option value="manual">manual</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="detail-action-row">
+                  <button id="save-match-record-btn" class="primary-btn" type="submit">保存匹配</button>
+                  <button id="cancel-match-record-btn" class="ghost-btn" type="button">取消</button>
+                </div>
+              </form>
+              <div id="detail-matches" class="stack-list"></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

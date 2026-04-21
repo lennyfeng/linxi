@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Users & Permissions</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .admin-app { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    .admin-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .admin-topbar h1 { font-size: 1.5rem; margin: 0; }
+    .nav-links { display: flex; gap: 0.75rem; align-items: center; }
+    .nav-links a { color: var(--text-secondary, #666); text-decoration: none; font-size: 0.85rem; }
+
+    .admin-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border, #e5e5e5); margin-bottom: 1rem; }
+    .admin-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; font-size: 0.85rem; color: var(--text-secondary, #666); border-bottom: 2px solid transparent; }
+    .admin-tab.active { color: var(--text-primary, #222); border-bottom-color: var(--primary, #2563eb); font-weight: 600; }
+
+    .admin-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .admin-panel { background: var(--bg-card, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 8px; padding: 1rem; min-height: 400px; }
+    .admin-panel h3 { font-size: 0.95rem; margin: 0 0 0.75rem; }
+
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .admin-table th, .admin-table td { padding: 0.4rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border, #eee); }
+    .admin-table th { font-weight: 600; color: var(--text-secondary, #666); }
+    .admin-table tr { cursor: pointer; }
+    .admin-table tr:hover { background: var(--bg-hover, #f8f8f8); }
+    .admin-table tr.selected { background: var(--bg-selected, #eff6ff); }
+
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    .status-dot.active { background: #16a34a; }
+    .status-dot.inactive { background: #dc2626; }
+
+    .detail-section { margin-bottom: 1rem; }
+    .detail-section h4 { font-size: 0.85rem; margin: 0 0 0.5rem; color: var(--text-secondary, #555); }
+    .detail-kv { display: grid; grid-template-columns: 100px 1fr; gap: 0.25rem 0.5rem; font-size: 0.82rem; margin-bottom: 0.75rem; }
+    .detail-kv .k { color: var(--text-secondary, #888); }
+    .detail-kv .v { font-weight: 500; }
+
+    .chip-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .chip { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; background: var(--bg-hover, #f0f0f0); }
+
+    .edit-form { margin-top: 0.75rem; padding: 0.75rem; background: var(--bg-hover, #f8f8f8); border-radius: 6px; font-size: 0.82rem; }
+    .edit-form .form-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .edit-form input, .edit-form select { padding: 0.3rem 0.5rem; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: 0.82rem; flex: 1; min-width: 100px; }
+
+    .hint-text { font-size: 0.8rem; color: var(--text-secondary, #888); padding: 0.5rem 0; }
+    .error-text { color: #dc2626; }
+
+    @media (max-width: 900px) { .admin-content { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="admin-app">
+    <header class="admin-topbar">
+      <div>
+        <h1>Users & Permissions</h1>
+        <p class="hint-text">Manage users, roles, departments and access control</p>
+      </div>
+      <div class="nav-links">
+        <a href="/dashboard">← Dashboard</a>
+        <a href="/">Ledger</a>
+        <a href="/recon">Reconciliation</a>
+        <a href="/newproduct">Product Dev</a>
+        <button id="login-btn" class="primary-btn" type="button">Login</button>
+      </div>
+    </header>
+
+    <nav class="admin-tabs">
+      <button class="admin-tab active" data-tab="users">Users</button>
+      <button class="admin-tab" data-tab="roles">Roles</button>
+      <button class="admin-tab" data-tab="departments">Departments</button>
+      <button class="admin-tab" data-tab="permissions">Permissions</button>
+    </nav>
+
+    <section class="admin-content">
+      <div class="admin-panel">
+        <h3 id="list-title">Users</h3>
+        <p class="hint-text" id="list-hint">Loading...</p>
+        <table class="admin-table">
+          <thead id="list-thead"></thead>
+          <tbody id="list-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="admin-panel">
+        <h3 id="detail-title">Detail</h3>
+        <div id="detail-content"><p class="hint-text">Select an item from the list.</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>
