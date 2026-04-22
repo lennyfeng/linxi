@@ -19,11 +19,9 @@ export async function listSuppliers() {
     `SELECT
       id,
       name,
-      contact_name AS contact,
+      contact,
       phone,
       address,
-      remark,
-      CASE WHEN status = 1 THEN 'active' ELSE 'inactive' END AS status,
       synced_at AS syncedAt
     FROM lx_suppliers
     ORDER BY name ASC`,
