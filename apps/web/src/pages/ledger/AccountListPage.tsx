@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   message,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -15,7 +16,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { PlusOutlined, EditOutlined, RightOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '@/api/client';
 
@@ -29,6 +30,8 @@ interface Account {
   currentBalance: number;
   status: string;
   remark?: string | null;
+  accountGroup?: string | null;
+  includeInAssets?: number;
 }
 
 const fmtAmt = (n: number) =>
@@ -133,13 +136,16 @@ const AccountListPage: React.FC = () => {
       ),
     },
     {
-      title: '',
+      title: '操作',
       key: 'actions',
-      width: 140,
+      width: 200,
       render: (_: unknown, record: Account) => (
-        <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-          <Button type="link" icon={<RightOutlined />} onClick={() => navigate(`/ledger/transactions?account=${record.id}`)}>查看流水</Button>
+        <Space size={4}>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
+          <Button type="link" size="small" icon={<RightOutlined />} onClick={() => navigate(`/ledger/transactions?account=${record.id}`)}>流水</Button>
+          <Popconfirm title="确认停用此账户？" onConfirm={async () => { await apiClient.delete(`/ledger/accounts/${record.id}`); message.success('已停用'); fetch(); }} okText="确认" cancelText="取消">
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>停用</Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -161,7 +167,7 @@ const AccountListPage: React.FC = () => {
   const grouped = useMemo(() => {
     const map = new Map<string, Account[]>();
     for (const a of accounts) {
-      const key = a.accountType || 'other';
+      const key = a.accountGroup || a.accountType || '其他账户';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(a);
     }
@@ -194,7 +200,7 @@ const AccountListPage: React.FC = () => {
         {grouped.map(([type, list]) => (
           <div key={type} style={{ marginBottom: 24 }}>
             <Typography.Text strong style={{ fontSize: 14, color: '#6B7B8D', marginBottom: 8, display: 'block' }}>
-              {accountTypes.find((t) => t.value === type)?.label ?? type}
+              {type}
             </Typography.Text>
             <Table
               dataSource={list}

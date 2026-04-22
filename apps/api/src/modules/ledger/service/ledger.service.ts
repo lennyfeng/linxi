@@ -37,6 +37,25 @@ import {
   batchCreateTransactions as batchCreateRepo,
   getExchangeRate as getExchangeRateRepo,
   getGlobalStats as getGlobalStatsRepo,
+  listLedgerProjects,
+  getLedgerProjectById,
+  createLedgerProject as createProjectRepo,
+  updateLedgerProject as updateProjectRepo,
+  getChildProjectIds,
+  deleteLedgerProjectCascade,
+  batchUpdateProjectSort,
+  getProjectTransactionStats,
+  listLedgerCounterparties,
+  getLedgerCounterpartyById,
+  createLedgerCounterparty as createCounterpartyRepo,
+  updateLedgerCounterparty as updateCounterpartyRepo,
+  deleteLedgerCounterparty as deleteCounterpartyRepo,
+  batchUpdateCounterpartySort,
+  getCounterpartyTransactionStats,
+  softDeleteAccount,
+  batchUpdateAccountSort,
+  deleteCategoryRecord as deleteCategoryRepo,
+  batchUpdateCategorySort,
 } from '../repository/ledger.repository.js';
 
 function ensureExistingResource<T>(resource: T | null | undefined, fieldName: string, id: number): T {
@@ -164,17 +183,33 @@ export async function uploadTransactionAttachment(transactionId: number, body: J
 
 export async function createTransaction(body: JsonBody) {
   const amount = Number(body.amount || 0);
-  const amountCny = body.amountCny == null ? amount : Number(body.amountCny);
   ensureNonNegativeNumber(amount, 'amount');
-  ensureNonNegativeNumber(amountCny, 'amountCny');
   if (body.transferInAmount != null) ensureNonNegativeNumber(Number(body.transferInAmount), 'transferInAmount');
+
+  // Auto-resolve currency and exchange rate from account
+  let currency = (body.currency as string) || 'CNY';
+  let exchangeRate = body.exchangeRate == null ? null : Number(body.exchangeRate);
+  let amountCny = body.amountCny == null ? amount : Number(body.amountCny);
+  const txnDate = (body.transactionDate as string) || new Date().toISOString().slice(0, 10);
 
   if (body.accountId) {
     const account = await getAccountById(Number(body.accountId));
     if (!account) {
       throw new AppError(400, 'invalid_request', { field: 'accountId', reason: 'not_found' });
     }
+    currency = account.currency || 'CNY';
+    if (currency !== 'CNY' && exchangeRate == null) {
+      const rateRow = await getExchangeRateRepo(currency, 'CNY', txnDate);
+      exchangeRate = rateRow ? Number(rateRow.rate) : 1;
+      amountCny = Math.round(amount * exchangeRate * 100) / 100;
+    }
   }
+
+  if (currency === 'CNY') {
+    exchangeRate = 1;
+    amountCny = amount;
+  }
+  ensureNonNegativeNumber(amountCny, 'amountCny');
 
   if (body.categoryId) {
     const categoryList = await listCategories({}, 1, 100);
@@ -187,15 +222,15 @@ export async function createTransaction(body: JsonBody) {
   return await createTransactionRecord({
     transactionNo: (body.transactionNo as string) || `TXN-${Date.now()}`,
     transactionType: (body.transactionType as string) || 'expense',
-    transactionDate: (body.transactionDate as string) || new Date().toISOString().slice(0, 10),
+    transactionDate: txnDate,
     postingDate: (body.postingDate as string) || null,
     accountId: (body.accountId as number) || null,
     transferOutAccountId: (body.transferOutAccountId as number) || null,
     transferInAccountId: (body.transferInAccountId as number) || null,
     amount,
     transferInAmount: body.transferInAmount == null ? null : Number(body.transferInAmount),
-    currency: (body.currency as string) || 'CNY',
-    exchangeRate: body.exchangeRate == null ? null : Number(body.exchangeRate),
+    currency,
+    exchangeRate,
     amountCny,
     paymentAccount: (body.paymentAccount as string) || null,
     categoryId: (body.categoryId as number) || null,
@@ -215,9 +250,15 @@ export async function updateTransaction(id: number, body: JsonBody) {
   return await updateTransactionRecord(id, body);
 }
 
-export async function deleteTransaction(id: number) {
-  ensureExistingResource(await getTransactionById(id), 'transactionId', id);
-  await deleteTransactionRecord(id);
+export async function deleteTransaction(id: number, operatorId?: string | number | null) {
+  const txn = ensureExistingResource(await getTransactionById(id), 'transactionId', id);
+  await deleteTransactionRecord(id, {
+    transactionType: txn.transactionType ?? '',
+    amount: Number(txn.amount ?? 0),
+    accountId: txn.accountId ?? null,
+    transferInAccountId: txn.transferInAccountId ?? null,
+    transferInAmount: txn.transferInAmount != null ? Number(txn.transferInAmount) : null,
+  }, operatorId);
   return { deleted: true, id };
 }
 
@@ -361,4 +402,109 @@ export async function getExchangeRateSvc(query: JsonBody = {}) {
 
 export async function globalStats() {
   return await getGlobalStatsRepo();
+}
+
+// ══════════════════════════════════════
+// Ledger Projects Service (T-2.1)
+// ══════════════════════════════════════
+export async function getLedgerProjectsList(status?: string) {
+  const list = await listLedgerProjects(status);
+  const stats = await getProjectTransactionStats();
+  return list.map((p) => ({ ...p, stats: stats[p.id] || { income: 0, expense: 0, count: 0 } }));
+}
+
+export async function createProject(body: JsonBody) {
+  if (!body.name) throw new AppError(400, 'invalid_request', { field: 'name', reason: 'required' });
+  let depth = 1;
+  if (body.parentId) {
+    const parent = ensureExistingResource(await getLedgerProjectById(Number(body.parentId)), 'parentId', Number(body.parentId));
+    depth = parent.depth + 1;
+    if (depth > 3) throw new AppError(400, 'invalid_request', { field: 'parentId', reason: 'max_depth_3' });
+  }
+  return await createProjectRepo({ name: body.name as string, description: (body.description as string) || null, parentId: body.parentId ? Number(body.parentId) : null, depth, sortOrder: Number(body.sortOrder || 0), status: (body.status as string) || 'active' });
+}
+
+export async function updateProject(id: number, body: JsonBody) {
+  ensureExistingResource(await getLedgerProjectById(id), 'projectId', id);
+  return await updateProjectRepo(id, body as any);
+}
+
+export async function deleteProject(id: number) {
+  ensureExistingResource(await getLedgerProjectById(id), 'projectId', id);
+  // Cascade: self + children + grandchildren
+  const childIds = await getChildProjectIds(id);
+  let allIds = [id, ...childIds];
+  for (const cid of childIds) {
+    const grandChildren = await getChildProjectIds(cid);
+    allIds = allIds.concat(grandChildren);
+  }
+  await deleteLedgerProjectCascade(allIds);
+  return { deleted: true, ids: allIds };
+}
+
+export async function sortProjects(body: JsonBody) {
+  if (!Array.isArray(body.items)) throw new AppError(400, 'invalid_request', { field: 'items', reason: 'must_be_array' });
+  await batchUpdateProjectSort(body.items as any);
+  return { updated: true };
+}
+
+// ══════════════════════════════════════
+// Ledger Counterparties Service (T-2.2)
+// ══════════════════════════════════════
+export async function getLedgerCounterpartiesList(status?: string) {
+  const list = await listLedgerCounterparties(status);
+  const stats = await getCounterpartyTransactionStats();
+  return list.map((c) => ({ ...c, stats: stats[c.id] || { income: 0, expense: 0, count: 0 } }));
+}
+
+export async function createCounterparty(body: JsonBody) {
+  if (!body.name) throw new AppError(400, 'invalid_request', { field: 'name', reason: 'required' });
+  return await createCounterpartyRepo({ name: body.name as string, description: (body.description as string) || null, sortOrder: Number(body.sortOrder || 0) });
+}
+
+export async function updateCounterparty(id: number, body: JsonBody) {
+  ensureExistingResource(await getLedgerCounterpartyById(id), 'counterpartyId', id);
+  return await updateCounterpartyRepo(id, body as any);
+}
+
+export async function deleteCounterparty(id: number) {
+  ensureExistingResource(await getLedgerCounterpartyById(id), 'counterpartyId', id);
+  await deleteCounterpartyRepo(id);
+  return { deleted: true, id };
+}
+
+export async function sortCounterparties(body: JsonBody) {
+  if (!Array.isArray(body.items)) throw new AppError(400, 'invalid_request', { field: 'items', reason: 'must_be_array' });
+  await batchUpdateCounterpartySort(body.items as any);
+  return { updated: true };
+}
+
+// ══════════════════════════════════════
+// Account soft-delete + sort (T-2.3)
+// ══════════════════════════════════════
+export async function deleteAccountSvc(id: number) {
+  ensureExistingResource(await getAccountById(id), 'accountId', id);
+  await softDeleteAccount(id);
+  return { deleted: true, id };
+}
+
+export async function sortAccounts(body: JsonBody) {
+  if (!Array.isArray(body.items)) throw new AppError(400, 'invalid_request', { field: 'items', reason: 'must_be_array' });
+  await batchUpdateAccountSort(body.items as any);
+  return { updated: true };
+}
+
+// ══════════════════════════════════════
+// Category delete + sort (T-2.4)
+// ══════════════════════════════════════
+export async function deleteCategorySvc(id: number) {
+  ensureExistingResource(await getCategoryById(id), 'categoryId', id);
+  const deletedIds = await deleteCategoryRepo(id);
+  return { deleted: true, ids: deletedIds };
+}
+
+export async function sortCategories(body: JsonBody) {
+  if (!Array.isArray(body.items)) throw new AppError(400, 'invalid_request', { field: 'items', reason: 'must_be_array' });
+  await batchUpdateCategorySort(body.items as any);
+  return { updated: true };
 }

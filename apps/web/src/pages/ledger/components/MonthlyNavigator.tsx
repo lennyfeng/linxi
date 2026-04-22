@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Collapse, Spin } from 'antd';
-import dayjs from 'dayjs';
 import apiClient from '@/api/client';
 
 interface MonthlySummaryItem {
@@ -82,7 +81,7 @@ const MonthlyNavigator: React.FC<MonthlyNavigatorProps> = ({ activeYear, activeM
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 600, fontSize: 14 }}>
-                            {dayjs().month(item.month - 1).format('MMM')}
+                            {item.month}月
                           </span>
                           <span
                             style={{

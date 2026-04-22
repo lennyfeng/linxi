@@ -13,6 +13,8 @@ import {
   Select,
   Space,
   Tabs,
+  Tag,
+  TreeSelect,
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -51,9 +53,35 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
   const [saving, setSaving] = useState(false);
   const [counterpartySuggestions, setCounterpartySuggestions] = useState<{ value: string }[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [accountCurrency, setAccountCurrency] = useState('CNY');
+  const [projects, setProjects] = useState<{ id: number; name: string; parentId: number | null }[]>([]);
 
   const isTransfer = txType === 'transfer';
   const isEdit = !!editId;
+
+  // Load projects
+  useEffect(() => {
+    if (!open) return;
+    apiClient.get('/ledger/projects?status=active').then((r) => {
+      const list = r.data?.data ?? r.data ?? [];
+      setProjects(Array.isArray(list) ? list : []);
+    });
+  }, [open]);
+
+  const projectTreeData = React.useMemo(() => {
+    const roots = projects.filter((p) => !p.parentId);
+    const buildChildren = (parentId: number): any[] =>
+      projects.filter((p) => p.parentId === parentId).map((p) => ({
+        value: p.name,
+        title: p.name,
+        children: buildChildren(p.id),
+      }));
+    return roots.map((r) => ({
+      value: r.name,
+      title: r.name,
+      children: buildChildren(r.id),
+    }));
+  }, [projects]);
 
   // Load existing transaction for edit
   useEffect(() => {
@@ -64,14 +92,13 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         if (!tx) return;
         setTxType(tx.transactionType || 'expense');
         setIsSubmitted(tx.status === 'submitted');
+        setAccountCurrency(tx.currency || 'CNY');
         form.setFieldsValue({
           transactionDate: dayjs(tx.transactionDate),
           accountId: tx.accountId,
           toAccountId: tx.transferInAccountId,
           amount: tx.amount,
           toAmount: tx.transferInAmount,
-          currency: tx.currency,
-          exchangeRate: tx.exchangeRate,
           categoryId: tx.categoryId,
           counterpartyName: tx.counterpartyName,
           projectName: tx.projectName,
@@ -86,9 +113,9 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
       form.resetFields();
       form.setFieldsValue({
         transactionDate: dayjs(),
-        currency: 'CNY',
         amount: undefined,
       });
+      setAccountCurrency('CNY');
     }
   }, [open, editId, form]);
 
@@ -112,8 +139,7 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         transferInAccountId: isTransfer ? values.toAccountId : undefined,
         amount: values.amount,
         transferInAmount: isTransfer ? (values.toAmount ?? values.amount) : undefined,
-        currency: values.currency || 'CNY',
-        exchangeRate: values.exchangeRate || null,
+        // currency and exchangeRate auto-resolved by backend from account
         categoryId: isTransfer ? null : values.categoryId,
         counterpartyName: values.counterpartyName || null,
         projectName: values.projectName || null,
@@ -139,7 +165,6 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         form.setFieldsValue({
           transactionDate: preserveDate,
           accountId: preserveAccount,
-          currency: 'CNY',
         });
       } else {
         onClose();
@@ -150,12 +175,20 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
     }
   };
 
-  const categoryOptions = categories
-    .filter((c) => {
-      if (txType === 'income') return c.categoryType === 'income';
-      return c.categoryType === 'expense';
-    })
-    .map((c) => ({ value: c.id, label: c.categoryName }));
+  const categoryTree = React.useMemo(() => {
+    const type = txType === 'income' ? 'income' : 'expense';
+    const items = categories.filter((c) => c.categoryType === type);
+    const roots = items.filter((c) => !c.parentId);
+    return roots.map((root) => {
+      const children = items.filter((c) => c.parentId === root.id);
+      return {
+        value: root.id,
+        title: root.categoryName,
+        selectable: children.length === 0,
+        children: children.map((ch) => ({ value: ch.id, title: ch.categoryName })),
+      };
+    });
+  }, [categories, txType]);
 
   const accountOptions = accounts.map((a) => ({
     value: a.id,
@@ -170,7 +203,7 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
 
   return (
     <Drawer
-      title={isEdit ? '编辑流水' : '新建流水'}
+      title={isEdit ? '编辑流水' : '记一笔'}
       open={open}
       onClose={onClose}
       width={640}
@@ -220,28 +253,40 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
                 options={accountOptions}
                 placeholder="选择账户..."
                 disabled={isSubmitted && isEdit}
+                onChange={(val) => {
+                  const acc = accounts.find((a) => a.id === val);
+                  setAccountCurrency(acc?.currency || 'CNY');
+                }}
               />
             </Form.Item>
-            <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
-              <InputNumber
-                style={{ width: '100%' }}
-                min={0}
-                precision={2}
-                placeholder="0.00"
-                disabled={isSubmitted && isEdit}
-              />
-            </Form.Item>
-            <Form.Item name="currency" label="币种">
-              <Select
-                options={[{ value: 'CNY' }, { value: 'USD' }, { value: 'EUR' }, { value: 'GBP' }]}
-                disabled={isSubmitted && isEdit}
-              />
-            </Form.Item>
-            <Form.Item name="exchangeRate" label="汇率">
-              <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="自动填充" disabled={isSubmitted && isEdit} />
+            <Form.Item label="金额" required>
+              <Space.Compact style={{ width: '100%' }}>
+                <Form.Item name="amount" noStyle rules={[{ required: true }]}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0}
+                    precision={2}
+                    placeholder="0.00"
+                    disabled={isSubmitted && isEdit}
+                  />
+                </Form.Item>
+                {accountCurrency !== 'CNY' && (
+                  <Tag color="blue" style={{ lineHeight: '30px', margin: 0, borderRadius: '0 6px 6px 0' }}>{accountCurrency}</Tag>
+                )}
+              </Space.Compact>
+              {accountCurrency !== 'CNY' && (
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>汇率将根据账户币种自动计算</div>
+              )}
             </Form.Item>
             <Form.Item name="categoryId" label="分类" rules={[{ required: true }]}>
-              <Select showSearch optionFilterProp="label" options={categoryOptions} placeholder="选择分类..." />
+              <TreeSelect
+                showSearch
+                treeData={categoryTree}
+                treeDefaultExpandAll
+                placeholder="选择分类..."
+                treeLine
+                treeNodeFilterProp="title"
+              />
             </Form.Item>
           </>
         ) : (
@@ -258,9 +303,6 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
             <Form.Item name="toAmount" label="转入金额">
               <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="同币种则与转出相同" disabled={isSubmitted && isEdit} />
             </Form.Item>
-            <Form.Item name="exchangeRate" label="汇率">
-              <InputNumber style={{ width: '100%' }} min={0} precision={4} placeholder="不同币种时填写" disabled={isSubmitted && isEdit} />
-            </Form.Item>
           </>
         )}
 
@@ -273,7 +315,14 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         </Form.Item>
 
         <Form.Item name="projectName" label="项目">
-          <Input placeholder="项目名称（可选）" />
+          <TreeSelect
+            treeData={projectTreeData}
+            allowClear
+            showSearch
+            treeNodeFilterProp="title"
+            treeDefaultExpandAll
+            placeholder="选择项目（可选）"
+          />
         </Form.Item>
 
         <Form.Item name="summary" label="摘要" rules={[{ required: true, min: 2, max: 200 }]}>

@@ -5,11 +5,12 @@ import {
   Col,
   Input,
   message,
+  Popconfirm,
   Row,
   Tree,
   Typography,
 } from 'antd';
-import { PlusOutlined, EditOutlined, RightOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, RightOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '@/api/client';
@@ -138,6 +139,22 @@ const CategoryPage: React.FC = () => {
             onClick={(e) => { e.stopPropagation(); setAddingParent(`${cat.categoryType}:${cat.id}`); setAddingName(''); }}
           />
         )}
+        <Popconfirm
+          title={cat.parentId ? '确认删除此分类？' : '确认删除此父分类及其所有子分类？'}
+          onConfirm={async (e) => {
+            e?.stopPropagation();
+            try {
+              await apiClient.delete(`/ledger/categories/${cat.id}`);
+              message.success('已删除');
+              fetch();
+            } catch { message.error('删除失败'); }
+          }}
+          onCancel={(e) => e?.stopPropagation()}
+          okText="确认"
+          cancelText="取消"
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+        </Popconfirm>
       </span>
     );
   };

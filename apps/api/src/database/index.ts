@@ -61,3 +61,7 @@ export async function query<T = DbRow>(sql: string, params: unknown[] = []): Pro
     throw new AppError(500, 'database_error', { details: error instanceof Error ? error.message : null }, ErrorCodes.DATABASE_ERROR);
   }
 }
+
+export async function getConnection() {
+  return getPool().getConnection();
+}

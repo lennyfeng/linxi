@@ -10,6 +10,8 @@ import {
   Tooltip,
   Empty,
   Dropdown,
+  Popconfirm,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -18,6 +20,9 @@ import {
   DownloadOutlined,
   ReloadOutlined,
   UnorderedListOutlined,
+  EditOutlined,
+  CopyOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -189,97 +194,82 @@ const TransactionListPage: React.FC = () => {
     setPage(1);
   };
 
-  /* ─── Stats Bar ─── */
-  const statsBar = (
-    <div
-      style={{
-        display: 'flex',
-        gap: 24,
-        padding: '12px 20px',
-        background: '#fff',
-        borderBottom: '1px solid #F0F2F5',
-      }}
-    >
-      <div>
-        <span style={{ color: '#6B7B8D', fontSize: 12 }}>收入</span>
-        <div style={{ color: '#00B894', fontWeight: 600, fontSize: 18, fontFamily: 'DIN Alternate, monospace' }}>
-          +¥{fmtAmt(stats.income)}
-        </div>
-      </div>
-      <div>
-        <span style={{ color: '#6B7B8D', fontSize: 12 }}>支出</span>
-        <div style={{ color: '#FF6B6B', fontWeight: 600, fontSize: 18, fontFamily: 'DIN Alternate, monospace' }}>
-          -¥{fmtAmt(stats.expense)}
-        </div>
-      </div>
-      <div>
-        <span style={{ color: '#6B7B8D', fontSize: 12 }}>结余</span>
-        <div
-          style={{
-            color: stats.balance >= 0 ? '#00B894' : '#FF6B6B',
-            fontWeight: 600,
-            fontSize: 18,
-            fontFamily: 'DIN Alternate, monospace',
-          }}
-        >
-          ¥{fmtAmt(stats.balance)}
-        </div>
-      </div>
-      <div style={{ flex: 1 }} />
-      <div style={{ alignSelf: 'center', color: '#A0AEC0', fontSize: 12 }}>
-        共 {total} 条流水
-      </div>
-    </div>
-  );
-
-  /* ─── Toolbar ─── */
-  const toolbar = (
+  /* ─── Combined Header Bar (stats + toolbar merged) ─── */
+  const headerBar = (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
+        gap: 16,
         padding: '10px 20px',
         background: '#fff',
         borderBottom: '1px solid #F0F2F5',
       }}
     >
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => { setFormEditId(null); setFormDrawerOpen(true); }}>
-        新建
-      </Button>
-      <Dropdown
-        menu={{
-          items: [
-            { key: 'batch', label: '批量录入', icon: <UnorderedListOutlined /> },
-            { key: 'import', label: '导入', icon: <DownloadOutlined /> },
-          ],
-          onClick: ({ key }) => {
-            if (key === 'batch') navigate('/ledger/batch-entry');
-            if (key === 'import') navigate('/ledger/import');
-          },
-        }}
-      >
-        <Button>更多</Button>
-      </Dropdown>
+      {/* Left: title + stats */}
+      <span style={{ fontWeight: 600, fontSize: 15, color: '#1A2332', whiteSpace: 'nowrap' }}>流水列表</span>
+      <Space size={16} style={{ marginLeft: 4 }}>
+        <span style={{ fontSize: 13 }}>
+          <span style={{ color: '#6B7B8D' }}>结余 </span>
+          <span style={{ color: stats.balance >= 0 ? '#00B894' : '#FF6B6B', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>
+            ¥{fmtAmt(stats.balance)}
+          </span>
+        </span>
+        <span style={{ fontSize: 13 }}>
+          <span style={{ color: '#6B7B8D' }}>收入 </span>
+          <span style={{ color: '#00B894', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>
+            +¥{fmtAmt(stats.income)}
+          </span>
+        </span>
+        <span style={{ fontSize: 13 }}>
+          <span style={{ color: '#6B7B8D' }}>支出 </span>
+          <span style={{ color: '#FF6B6B', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>
+            -¥{fmtAmt(stats.expense)}
+          </span>
+        </span>
+        <span style={{ color: '#A0AEC0', fontSize: 12 }}>共 {total} 条</span>
+      </Space>
+
       <div style={{ flex: 1 }} />
-      <Input
-        placeholder="搜索..."
-        prefix={<SearchOutlined style={{ color: '#A0AEC0' }} />}
-        value={keyword}
-        onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-        style={{ width: 220 }}
-        allowClear
-      />
-      <Tooltip title="筛选">
-        <Button
-          icon={<FilterOutlined />}
-          type={showFilters ? 'primary' : 'default'}
-          onClick={() => setShowFilters(!showFilters)}
+
+      {/* Right: action buttons + search + filter/refresh */}
+      <Space size={8}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setFormEditId(null); setFormDrawerOpen(true); }}>
+          记一笔
+        </Button>
+        <Dropdown
+          menu={{
+            items: [
+              { key: 'batch', label: '批量录入', icon: <UnorderedListOutlined /> },
+              { key: 'import', label: '导入', icon: <DownloadOutlined /> },
+            ],
+            onClick: ({ key }) => {
+              if (key === 'batch') navigate('/ledger/batch-entry');
+              if (key === 'import') navigate('/ledger/import');
+            },
+          }}
+        >
+          <Button>更多</Button>
+        </Dropdown>
+        <Input
+          placeholder="搜索..."
+          prefix={<SearchOutlined style={{ color: '#A0AEC0' }} />}
+          value={keyword}
+          onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+          style={{ width: 200 }}
+          allowClear
         />
-      </Tooltip>
-      <Tooltip title="刷新">
-        <Button icon={<ReloadOutlined />} onClick={fetchTransactions} />
-      </Tooltip>
+        <Tooltip title="筛选">
+          <Button
+            icon={<FilterOutlined />}
+            type={showFilters ? 'primary' : 'default'}
+            onClick={() => setShowFilters(!showFilters)}
+          />
+        </Tooltip>
+        <Tooltip title="刷新">
+          <Button icon={<ReloadOutlined />} onClick={fetchTransactions} />
+        </Tooltip>
+      </Space>
     </div>
   );
 
@@ -418,6 +408,45 @@ const TransactionListPage: React.FC = () => {
         </Tag>
       ),
     },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 140,
+      fixed: 'right' as const,
+      render: (_: unknown, row: Transaction) => (
+        <Space size={0}>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setFormEditId(row.id); setFormDrawerOpen(true); }}>
+            编辑
+          </Button>
+          <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => {
+            setFormEditId(null);
+            setFormDrawerOpen(true);
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('txn-copy', { detail: row }));
+            }, 100);
+          }}>
+            复制
+          </Button>
+          <Popconfirm
+            title="确认删除此笔流水？删除后不可恢复"
+            onConfirm={async () => {
+              try {
+                await apiClient.delete(`/ledger/transactions/${row.id}`);
+                message.success('已删除');
+                fetchTransactions();
+                fetchGlobalStats();
+              } catch {
+                message.error('删除失败');
+              }
+            }}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   const transactionList = loading ? (
@@ -439,7 +468,7 @@ const TransactionListPage: React.FC = () => {
             }}
           >
             <span style={{ fontWeight: 600, fontSize: 13, color: '#1A2332' }}>
-              {dayjs(date).format('ddd, MMM D')}
+              {dayjs(date).format('M月D日 ddd')}
             </span>
             <Space size={16}>
               {group.income > 0 && (
@@ -480,7 +509,7 @@ const TransactionListPage: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: '#F5F7FA' }}>
       {/* Left: Monthly navigator */}
-      <div style={{ width: 200, flexShrink: 0 }}>
+      <div style={{ width: 180, flexShrink: 0 }}>
         <MonthlyNavigator
           activeYear={activeYear}
           activeMonth={activeMonth}
@@ -490,8 +519,7 @@ const TransactionListPage: React.FC = () => {
 
       {/* Right: Transaction panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {statsBar}
-        {toolbar}
+        {headerBar}
         {filterBar}
         {transactionList}
       </div>

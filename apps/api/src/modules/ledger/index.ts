@@ -47,6 +47,20 @@ import {
   counterpartySuggest,
   getExchangeRateSvc,
   globalStats,
+  getLedgerProjectsList,
+  createProject,
+  updateProject,
+  deleteProject,
+  sortProjects,
+  getLedgerCounterpartiesList,
+  createCounterparty,
+  updateCounterparty,
+  deleteCounterparty,
+  sortCounterparties,
+  deleteAccountSvc,
+  sortAccounts,
+  deleteCategorySvc,
+  sortCategories,
 } from './service/ledger.service.js';
 
 export const ledgerModule = {
@@ -371,6 +385,82 @@ export const handleLedgerRoutes: RouteHandler = async (req, res, url, ctx) => {
 
   if (req.method === 'GET' && url.pathname === '/ledger/matches') {
     sendJson(res, await getMatches(Object.fromEntries(url.searchParams.entries())), responseOptions);
+    return true;
+  }
+
+  // ── Ledger Projects ──
+  if (req.method === 'GET' && url.pathname === '/ledger/projects') {
+    const status = url.searchParams.get('status') || undefined;
+    sendJson(res, await getLedgerProjectsList(status), responseOptions);
+    return true;
+  }
+  if (req.method === 'POST' && url.pathname === '/ledger/projects') {
+    sendJson(res, await createProject(await readJsonBody(req)), { ...responseOptions, statusCode: 201 });
+    return true;
+  }
+  const projectIdMatch = url.pathname.match(/^\/ledger\/projects\/(\d+)$/);
+  if (projectIdMatch) {
+    const projectId = Number(projectIdMatch[1]);
+    if (req.method === 'PUT') {
+      sendJson(res, await updateProject(projectId, await readJsonBody(req)), responseOptions);
+      return true;
+    }
+    if (req.method === 'DELETE') {
+      sendJson(res, await deleteProject(projectId), responseOptions);
+      return true;
+    }
+  }
+  if (req.method === 'PUT' && url.pathname === '/ledger/projects/sort') {
+    sendJson(res, await sortProjects(await readJsonBody(req)), responseOptions);
+    return true;
+  }
+
+  // ── Ledger Counterparties (managed) ──
+  if (req.method === 'GET' && url.pathname === '/ledger/counterparties/managed') {
+    const status = url.searchParams.get('status') || undefined;
+    sendJson(res, await getLedgerCounterpartiesList(status), responseOptions);
+    return true;
+  }
+  if (req.method === 'POST' && url.pathname === '/ledger/counterparties/managed') {
+    sendJson(res, await createCounterparty(await readJsonBody(req)), { ...responseOptions, statusCode: 201 });
+    return true;
+  }
+  const cpIdMatch = url.pathname.match(/^\/ledger\/counterparties\/managed\/(\d+)$/);
+  if (cpIdMatch) {
+    const cpId = Number(cpIdMatch[1]);
+    if (req.method === 'PUT') {
+      sendJson(res, await updateCounterparty(cpId, await readJsonBody(req)), responseOptions);
+      return true;
+    }
+    if (req.method === 'DELETE') {
+      sendJson(res, await deleteCounterparty(cpId), responseOptions);
+      return true;
+    }
+  }
+  if (req.method === 'PUT' && url.pathname === '/ledger/counterparties/managed/sort') {
+    sendJson(res, await sortCounterparties(await readJsonBody(req)), responseOptions);
+    return true;
+  }
+
+  // ── Account delete + sort ──
+  const acctDeleteMatch = url.pathname.match(/^\/ledger\/accounts\/(\d+)$/);
+  if (req.method === 'DELETE' && acctDeleteMatch) {
+    sendJson(res, await deleteAccountSvc(Number(acctDeleteMatch[1])), responseOptions);
+    return true;
+  }
+  if (req.method === 'PUT' && url.pathname === '/ledger/accounts/sort') {
+    sendJson(res, await sortAccounts(await readJsonBody(req)), responseOptions);
+    return true;
+  }
+
+  // ── Category delete + sort ──
+  const catDeleteMatch = url.pathname.match(/^\/ledger\/categories\/(\d+)$/);
+  if (req.method === 'DELETE' && catDeleteMatch) {
+    sendJson(res, await deleteCategorySvc(Number(catDeleteMatch[1])), responseOptions);
+    return true;
+  }
+  if (req.method === 'PUT' && url.pathname === '/ledger/categories/sort') {
+    sendJson(res, await sortCategories(await readJsonBody(req)), responseOptions);
     return true;
   }
 

@@ -1,7 +1,7 @@
 import type { PaginationMeta } from '../../../common/pagination.js';
 import { buildPagination } from '../../../common/pagination.js';
 import type { DbRow } from '../../../database/index.js';
-import { query } from '../../../database/index.js';
+import { query, getConnection } from '../../../database/index.js';
 import type {
   LedgerAccount,
   LedgerCategory,
@@ -200,81 +200,92 @@ export async function listTransactions(filters: LedgerFilters, page: number, pag
   const params: unknown[] = [];
 
   if (filters.transactionType) {
-    whereClauses.push('type = ?');
+    whereClauses.push('t.type = ?');
     params.push(filters.transactionType);
   }
 
   if (filters.reimbursementStatus) {
-    whereClauses.push('reimbursement_status = ?');
+    whereClauses.push('t.reimbursement_status = ?');
     params.push(filters.reimbursementStatus);
   }
 
   if (filters.accountId) {
-    whereClauses.push('account_id = ?');
+    whereClauses.push('t.account_id = ?');
     params.push(filters.accountId);
   }
 
   if (filters.categoryId) {
-    whereClauses.push('category_id = ?');
+    whereClauses.push('t.category_id = ?');
     params.push(filters.categoryId);
   }
 
   if (filters.startDate) {
-    whereClauses.push('date >= ?');
+    whereClauses.push('t.date >= ?');
     params.push(filters.startDate);
   }
 
   if (filters.endDate) {
-    whereClauses.push('date <= ?');
+    whereClauses.push('t.date <= ?');
     params.push(filters.endDate);
   }
 
   if (filters.projectName) {
-    whereClauses.push('project_name = ?');
+    whereClauses.push('t.project_name = ?');
     params.push(filters.projectName);
   }
 
   if (filters.counterpartyName) {
-    whereClauses.push('counterparty = ?');
+    whereClauses.push('t.counterparty = ?');
     params.push(filters.counterpartyName);
   }
 
   if (filters.keyword) {
-    whereClauses.push('(transaction_no LIKE ? OR counterparty LIKE ? OR project_name LIKE ? OR description LIKE ? OR payment_account LIKE ?)');
-    params.push(
-      `%${filters.keyword}%`,
-      `%${filters.keyword}%`,
-      `%${filters.keyword}%`,
-      `%${filters.keyword}%`,
-      `%${filters.keyword}%`,
-    );
+    const kw = `%${filters.keyword}%`;
+    const keywordClauses = [
+      't.transaction_no LIKE ?',
+      't.counterparty LIKE ?',
+      't.project_name LIKE ?',
+      't.description LIKE ?',
+      't.remark LIKE ?',
+      't.payment_account LIKE ?',
+      'a.name LIKE ?',
+      'c.name LIKE ?',
+    ];
+    const keywordParams: unknown[] = [kw, kw, kw, kw, kw, kw, kw, kw];
+    // If keyword looks like a number, also match exact amount
+    if (/^\d+(\.\d+)?$/.test(filters.keyword)) {
+      keywordClauses.push('t.amount = ?');
+      keywordParams.push(Number(filters.keyword));
+    }
+    whereClauses.push(`(${keywordClauses.join(' OR ')})`);
+    params.push(...keywordParams);
   }
 
   return await queryPagedList<LedgerTransaction>(
     `SELECT
-      id,
-      transaction_no AS transactionNo,
-      type AS transactionType,
-      date AS transactionDate,
-      account_id AS accountId,
-      amount,
-      currency,
-      exchange_rate AS exchangeRate,
-      amount_cny AS amountCny,
-      payment_account AS paymentAccount,
-      category_id AS categoryId,
-      counterparty AS counterpartyName,
-      project_name AS projectName,
-      description AS summary,
-      remark,
-      reimbursement_required AS reimbursementRequired,
-      reimbursement_status AS reimbursementStatus,
-      invoice_required AS invoiceRequired,
-      status`,
-    'FROM transactions',
+      t.id,
+      t.transaction_no AS transactionNo,
+      t.type AS transactionType,
+      t.date AS transactionDate,
+      t.account_id AS accountId,
+      t.amount,
+      t.currency,
+      t.exchange_rate AS exchangeRate,
+      t.amount_cny AS amountCny,
+      t.payment_account AS paymentAccount,
+      t.category_id AS categoryId,
+      t.counterparty AS counterpartyName,
+      t.project_name AS projectName,
+      t.description AS summary,
+      t.remark,
+      t.reimbursement_required AS reimbursementRequired,
+      t.reimbursement_status AS reimbursementStatus,
+      t.invoice_required AS invoiceRequired,
+      t.status`,
+    'FROM transactions t LEFT JOIN accounts a ON t.account_id = a.id LEFT JOIN categories c ON t.category_id = c.id',
     whereClauses,
     params,
-    'ORDER BY date DESC, id DESC',
+    'ORDER BY t.date DESC, t.id DESC',
     page,
     pageSize,
   );
@@ -409,10 +420,44 @@ export async function updateTransactionRecord(id: number, payload: Record<string
   return await getTransactionById(id);
 }
 
-export async function deleteTransactionRecord(id: number) {
-  await query('DELETE FROM transaction_attachments WHERE transaction_id = ?', [id]);
-  await query('DELETE FROM transaction_external_matches WHERE transaction_id = ?', [id]);
-  await query('DELETE FROM transactions WHERE id = ?', [id]);
+export async function deleteTransactionRecord(id: number, transaction: { transactionType: string; amount: number; accountId: number | null; transferInAccountId?: number | null; transferInAmount?: number | null }, operatorId?: string | number | null) {
+  const conn = await getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1. Balance rollback
+    if (transaction.accountId) {
+      if (transaction.transactionType === 'income') {
+        await conn.query('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?', [transaction.amount, transaction.accountId]);
+      } else if (transaction.transactionType === 'expense') {
+        await conn.query('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?', [transaction.amount, transaction.accountId]);
+      } else if (transaction.transactionType === 'transfer') {
+        await conn.query('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?', [transaction.amount, transaction.accountId]);
+        if (transaction.transferInAccountId) {
+          await conn.query('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?', [transaction.transferInAmount ?? transaction.amount, transaction.transferInAccountId]);
+        }
+      }
+    }
+
+    // 2. Delete related records
+    await conn.query('DELETE FROM transaction_attachments WHERE transaction_id = ?', [id]);
+    await conn.query('DELETE FROM transaction_external_matches WHERE transaction_id = ?', [id]);
+    await conn.query('DELETE FROM transactions WHERE id = ?', [id]);
+
+    // 3. Audit log
+    await conn.query(
+      `INSERT INTO audit_logs (log_type, module_key, object_type, object_id, action, operator_id, result_status)
+       VALUES ('write', 'ledger', 'transaction', ?, 'delete_transaction', ?, 'success')`,
+      [id, operatorId ?? null],
+    );
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 // ── Account update ──
@@ -899,4 +944,215 @@ export async function listMatchesByTransactionId(transactionId: number): Promise
     ORDER BY id ASC`,
     [transactionId],
   );
+}
+
+// ══════════════════════════════════════
+// Ledger Projects CRUD (T-2.1)
+// ══════════════════════════════════════
+export interface LedgerProject {
+  id: number;
+  name: string;
+  description: string | null;
+  parentId: number | null;
+  depth: number;
+  sortOrder: number;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function listLedgerProjects(status?: string): Promise<LedgerProject[]> {
+  const where = status ? 'WHERE status = ?' : '';
+  const params = status ? [status] : [];
+  return await query<LedgerProject>(
+    `SELECT id, name, description, parent_id AS parentId, depth, sort_order AS sortOrder, status, created_at AS createdAt
+     FROM ledger_projects ${where} ORDER BY sort_order ASC, id ASC`,
+    params,
+  );
+}
+
+export async function getLedgerProjectById(id: number): Promise<LedgerProject | null> {
+  const rows = await query<LedgerProject>(
+    `SELECT id, name, description, parent_id AS parentId, depth, sort_order AS sortOrder, status
+     FROM ledger_projects WHERE id = ?`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
+export async function createLedgerProject(payload: Partial<LedgerProject>): Promise<LedgerProject | null> {
+  const result: any = await query(
+    `INSERT INTO ledger_projects (name, description, parent_id, depth, sort_order, status)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [payload.name, payload.description || null, payload.parentId || null, payload.depth || 1, payload.sortOrder || 0, payload.status || 'active'],
+  );
+  return await getLedgerProjectById(Number(result.insertId));
+}
+
+export async function updateLedgerProject(id: number, payload: Partial<LedgerProject>): Promise<LedgerProject | null> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  const fieldMap: Record<string, string> = { name: 'name', description: 'description', parentId: 'parent_id', depth: 'depth', sortOrder: 'sort_order', status: 'status' };
+  for (const [key, col] of Object.entries(fieldMap)) {
+    if ((payload as any)[key] !== undefined) {
+      sets.push(`${col} = ?`);
+      params.push((payload as any)[key]);
+    }
+  }
+  if (!sets.length) return await getLedgerProjectById(id);
+  await query(`UPDATE ledger_projects SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+  return await getLedgerProjectById(id);
+}
+
+export async function deleteLedgerProject(id: number): Promise<void> {
+  // Delete self + all descendants
+  await query('DELETE FROM ledger_projects WHERE id = ? OR parent_id = ?', [id, id]);
+  // Also clean grandchildren (depth 3 whose parent was a depth-2 child of id)
+  // Simpler: delete by ids
+}
+
+export async function deleteLedgerProjectCascade(ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(',');
+  await query(`DELETE FROM ledger_projects WHERE id IN (${placeholders})`, ids);
+}
+
+export async function getChildProjectIds(parentId: number): Promise<number[]> {
+  const rows = await query<{ id: number }>('SELECT id FROM ledger_projects WHERE parent_id = ?', [parentId]);
+  return rows.map((r) => r.id);
+}
+
+export async function batchUpdateProjectSort(items: { id: number; sortOrder: number }[]): Promise<void> {
+  for (const item of items) {
+    await query('UPDATE ledger_projects SET sort_order = ? WHERE id = ?', [item.sortOrder, item.id]);
+  }
+}
+
+export async function getProjectTransactionStats(): Promise<Record<number, { income: number; expense: number; count: number }>> {
+  const rows = await query<{ projectId: number; income: number; expense: number; cnt: number }>(
+    `SELECT
+       p.id AS projectId,
+       COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) AS income,
+       COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS expense,
+       COUNT(t.id) AS cnt
+     FROM ledger_projects p
+     LEFT JOIN transactions t ON t.project_id = p.id
+     GROUP BY p.id`,
+  );
+  const map: Record<number, { income: number; expense: number; count: number }> = {};
+  for (const r of rows) {
+    map[r.projectId] = { income: Number(r.income), expense: Number(r.expense), count: Number(r.cnt) };
+  }
+  return map;
+}
+
+// ══════════════════════════════════════
+// Ledger Counterparties CRUD (T-2.2)
+// ══════════════════════════════════════
+export interface LedgerCounterparty {
+  id: number;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  status: string;
+}
+
+export async function listLedgerCounterparties(status?: string): Promise<LedgerCounterparty[]> {
+  const where = status ? 'WHERE status = ?' : '';
+  const params = status ? [status] : [];
+  return await query<LedgerCounterparty>(
+    `SELECT id, name, description, sort_order AS sortOrder, status
+     FROM ledger_counterparties ${where} ORDER BY sort_order ASC, id ASC`,
+    params,
+  );
+}
+
+export async function getLedgerCounterpartyById(id: number): Promise<LedgerCounterparty | null> {
+  const rows = await query<LedgerCounterparty>(
+    'SELECT id, name, description, sort_order AS sortOrder, status FROM ledger_counterparties WHERE id = ?',
+    [id],
+  );
+  return rows[0] || null;
+}
+
+export async function createLedgerCounterparty(payload: Partial<LedgerCounterparty>): Promise<LedgerCounterparty | null> {
+  const result: any = await query(
+    'INSERT INTO ledger_counterparties (name, description, sort_order, status) VALUES (?, ?, ?, ?)',
+    [payload.name, payload.description || null, payload.sortOrder || 0, payload.status || 'active'],
+  );
+  return await getLedgerCounterpartyById(Number(result.insertId));
+}
+
+export async function updateLedgerCounterparty(id: number, payload: Partial<LedgerCounterparty>): Promise<LedgerCounterparty | null> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  const fieldMap: Record<string, string> = { name: 'name', description: 'description', sortOrder: 'sort_order', status: 'status' };
+  for (const [key, col] of Object.entries(fieldMap)) {
+    if ((payload as any)[key] !== undefined) {
+      sets.push(`${col} = ?`);
+      params.push((payload as any)[key]);
+    }
+  }
+  if (!sets.length) return await getLedgerCounterpartyById(id);
+  await query(`UPDATE ledger_counterparties SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+  return await getLedgerCounterpartyById(id);
+}
+
+export async function deleteLedgerCounterparty(id: number): Promise<void> {
+  await query('DELETE FROM ledger_counterparties WHERE id = ?', [id]);
+}
+
+export async function batchUpdateCounterpartySort(items: { id: number; sortOrder: number }[]): Promise<void> {
+  for (const item of items) {
+    await query('UPDATE ledger_counterparties SET sort_order = ? WHERE id = ?', [item.sortOrder, item.id]);
+  }
+}
+
+export async function getCounterpartyTransactionStats(): Promise<Record<number, { income: number; expense: number; count: number }>> {
+  const rows = await query<{ counterpartyId: number; income: number; expense: number; cnt: number }>(
+    `SELECT
+       cp.id AS counterpartyId,
+       COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) AS income,
+       COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS expense,
+       COUNT(t.id) AS cnt
+     FROM ledger_counterparties cp
+     LEFT JOIN transactions t ON t.counterparty_id = cp.id
+     GROUP BY cp.id`,
+  );
+  const map: Record<number, { income: number; expense: number; count: number }> = {};
+  for (const r of rows) {
+    map[r.counterpartyId] = { income: Number(r.income), expense: Number(r.expense), count: Number(r.cnt) };
+  }
+  return map;
+}
+
+// ══════════════════════════════════════
+// Account sort + soft-delete (T-2.3)
+// ══════════════════════════════════════
+export async function softDeleteAccount(id: number): Promise<void> {
+  await query("UPDATE accounts SET status = 'disabled', is_active = 0 WHERE id = ?", [id]);
+}
+
+export async function batchUpdateAccountSort(items: { id: number; sortOrder: number }[]): Promise<void> {
+  for (const item of items) {
+    await query('UPDATE accounts SET sort_order = ? WHERE id = ?', [item.sortOrder, item.id]);
+  }
+}
+
+// ══════════════════════════════════════
+// Category delete + sort (T-2.4)
+// ══════════════════════════════════════
+export async function deleteCategoryRecord(id: number): Promise<number[]> {
+  // Find children
+  const children = await query<{ id: number }>('SELECT id FROM categories WHERE parent_id = ?', [id]);
+  const allIds = [id, ...children.map((c) => c.id)];
+  const placeholders = allIds.map(() => '?').join(',');
+  await query(`DELETE FROM categories WHERE id IN (${placeholders})`, allIds);
+  return allIds;
+}
+
+export async function batchUpdateCategorySort(items: { id: number; sortOrder: number }[]): Promise<void> {
+  for (const item of items) {
+    await query('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sortOrder, item.id]);
+  }
 }
