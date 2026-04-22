@@ -139,7 +139,7 @@ const AccountListPage: React.FC = () => {
       render: (_: unknown, record: Account) => (
         <Space>
           <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-          <Button type="link" icon={<RightOutlined />} onClick={() => navigate(`/ledger/transactions?account=${record.id}`)}>Transactions</Button>
+          <Button type="link" icon={<RightOutlined />} onClick={() => navigate(`/ledger/transactions?account=${record.id}`)}>查看流水</Button>
         </Space>
       ),
     },
@@ -173,21 +173,21 @@ const AccountListPage: React.FC = () => {
       {/* Stats Header */}
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card><Statistic title="Total Assets" value={totals.assets} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+          <Card><Statistic title="总资产" value={totals.assets} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Total Liabilities" value={totals.liabilities} precision={2} prefix="¥" valueStyle={{ color: '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+          <Card><Statistic title="总负债" value={totals.liabilities} precision={2} prefix="¥" valueStyle={{ color: '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Net Worth" value={totals.netWorth} precision={2} prefix="¥" valueStyle={{ color: totals.netWorth >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+          <Card><Statistic title="净资产" value={totals.netWorth} precision={2} prefix="¥" valueStyle={{ color: totals.netWorth >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
         </Col>
       </Row>
 
       <Card
-        title={<Typography.Title level={4} style={{ margin: 0 }}>Account Management</Typography.Title>}
+        title={<Typography.Title level={4} style={{ margin: 0 }}>账户管理</Typography.Title>}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            New Account
+            新建账户
           </Button>
         }
       >

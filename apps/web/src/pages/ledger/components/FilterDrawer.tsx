@@ -22,15 +22,15 @@ export interface FilterValues {
 }
 
 const typeOptions = [
-  { value: 'income', label: 'Income' },
-  { value: 'expense', label: 'Expense' },
-  { value: 'transfer', label: 'Transfer' },
-  { value: 'refund', label: 'Refund' },
+  { value: 'income', label: '收入' },
+  { value: 'expense', label: '支出' },
+  { value: 'transfer', label: '转账' },
+  { value: 'refund', label: '退款' },
 ];
 
 const statusOptions = [
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'draft', label: 'Draft' },
+  { value: 'submitted', label: '已提交' },
+  { value: 'draft', label: '草稿' },
 ];
 
 const FilterDrawer: React.FC<FilterDrawerProps> = ({
@@ -80,61 +80,61 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
 
   return (
     <Drawer
-      title="Filter"
+      title="筛选"
       open={open}
       onClose={onClose}
       width={360}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Button onClick={handleReset}>Reset</Button>
+          <Button onClick={handleReset}>重置</Button>
           <Space>
-            <Button onClick={onClose}>Cancel</Button>
-            <Button type="primary" onClick={handleApply}>Apply</Button>
+            <Button onClick={onClose}>取消</Button>
+            <Button type="primary" onClick={handleApply}>应用</Button>
           </Space>
         </div>
       }
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="dateRange" label="Date Range">
+        <Form.Item name="dateRange" label="日期范围">
           <RangePicker style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name="transactionTypes" label="Type">
+        <Form.Item name="transactionTypes" label="类型">
           <Select
             mode="multiple"
             options={typeOptions}
-            placeholder="All types"
+            placeholder="全部类型"
             allowClear
           />
         </Form.Item>
 
-        <Form.Item name="accountIds" label="Account">
+        <Form.Item name="accountIds" label="账户">
           <Select
             mode="multiple"
             options={accounts.map((a) => ({ value: a.id, label: a.accountName }))}
-            placeholder="All accounts"
+            placeholder="全部账户"
             showSearch
             optionFilterProp="label"
             allowClear
           />
         </Form.Item>
 
-        <Form.Item name="categoryIds" label="Category">
+        <Form.Item name="categoryIds" label="分类">
           <Select
             mode="multiple"
             options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
-            placeholder="All categories"
+            placeholder="全部分类"
             showSearch
             optionFilterProp="label"
             allowClear
           />
         </Form.Item>
 
-        <Form.Item name="statuses" label="Status">
+        <Form.Item name="statuses" label="状态">
           <Select
             mode="multiple"
             options={statusOptions}
-            placeholder="All statuses"
+            placeholder="全部状态"
             allowClear
           />
         </Form.Item>

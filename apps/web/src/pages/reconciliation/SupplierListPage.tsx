@@ -39,11 +39,11 @@ const SupplierListPage: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <Card
-        title={<Typography.Title level={4} style={{ margin: 0 }}>Supplier Management (Lingxing)</Typography.Title>}
+        title={<Typography.Title level={4} style={{ margin: 0 }}>供应商管理（领星）</Typography.Title>}
         extra={
           <Space>
             <Input
-              placeholder="Search..."
+              placeholder="搜索..."
               prefix={<SearchOutlined style={{ color: '#A0AEC0' }} />}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -55,7 +55,7 @@ const SupplierListPage: React.FC = () => {
         }
       >
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          {filtered.length} suppliers synced from Lingxing ERP
+          已同步 {filtered.length} 个供应商（来自领星ERP）
         </Typography.Text>
         <Table
           dataSource={filtered}
@@ -64,13 +64,13 @@ const SupplierListPage: React.FC = () => {
           pagination={{ pageSize: 50 }}
           loading={loading}
           columns={[
-            { title: 'ID', dataIndex: 'id', width: 70 },
-            { title: 'Name', dataIndex: 'name', render: (v: string) => <Typography.Text strong>{v}</Typography.Text> },
-            { title: 'Contact', dataIndex: 'contact', width: 120, render: (v: string | null) => v || '-' },
-            { title: 'Phone', dataIndex: 'phone', width: 140, render: (v: string | null) => v || '-' },
-            { title: 'Address', dataIndex: 'address', ellipsis: true, render: (v: string | null) => v || '-' },
-            { title: 'Status', dataIndex: 'status', width: 90, render: (v: string | null) => <Tag color={v === 'active' ? 'green' : 'default'}>{v || 'unknown'}</Tag> },
-            { title: 'Synced', dataIndex: 'syncedAt', width: 160, render: (v: string | null) => v || '-' },
+            { title: '编号', dataIndex: 'id', width: 70 },
+            { title: '名称', dataIndex: 'name', render: (v: string) => <Typography.Text strong>{v}</Typography.Text> },
+            { title: '联系人', dataIndex: 'contact', width: 120, render: (v: string | null) => v || '-' },
+            { title: '电话', dataIndex: 'phone', width: 140, render: (v: string | null) => v || '-' },
+            { title: '地址', dataIndex: 'address', ellipsis: true, render: (v: string | null) => v || '-' },
+            { title: '状态', dataIndex: 'status', width: 90, render: (v: string | null) => <Tag color={v === 'active' ? 'green' : 'default'}>{v || 'unknown'}</Tag> },
+            { title: '同步时间', dataIndex: 'syncedAt', width: 160, render: (v: string | null) => v || '-' },
           ]}
         />
       </Card>

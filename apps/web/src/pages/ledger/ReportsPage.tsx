@@ -80,13 +80,13 @@ const ReportsPage: React.FC = () => {
     <div>
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card><Statistic title="Total Income" value={monthlyTrend.reduce((s, m) => s + m.income, 0)} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42' }} /></Card>
+          <Card><Statistic title="总收入" value={monthlyTrend.reduce((s, m) => s + m.income, 0)} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Total Expense" value={monthlyTrend.reduce((s, m) => s + m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#52C41A' }} /></Card>
+          <Card><Statistic title="总支出" value={monthlyTrend.reduce((s, m) => s + m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#52C41A' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Net" value={monthlyTrend.reduce((s, m) => s + m.income - m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#1890ff' }} /></Card>
+          <Card><Statistic title="净额" value={monthlyTrend.reduce((s, m) => s + m.income - m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#1890ff' }} /></Card>
         </Col>
       </Row>
       <Table
@@ -96,10 +96,10 @@ const ReportsPage: React.FC = () => {
         pagination={false}
         loading={loading}
         columns={[
-          { title: 'Month', dataIndex: 'month', width: 100, render: (m: number) => `${year}-${String(m).padStart(2, '0')}` },
-          { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42', fontWeight: 600 }}>+¥{fmtAmt(v)}</span> },
-          { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A', fontWeight: 600 }}>-¥{fmtAmt(v)}</span> },
-          { title: 'Net', key: 'net', align: 'right' as const, render: (_: unknown, r: any) => { const n = r.income - r.expense; return <span style={{ color: n >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600 }}>¥{fmtAmt(n)}</span>; } },
+          { title: '月份', dataIndex: 'month', width: 100, render: (m: number) => `${year}-${String(m).padStart(2, '0')}` },
+          { title: '收入', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42', fontWeight: 600 }}>+¥{fmtAmt(v)}</span> },
+          { title: '支出', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A', fontWeight: 600 }}>-¥{fmtAmt(v)}</span> },
+          { title: '净额', key: 'net', align: 'right' as const, render: (_: unknown, r: any) => { const n = r.income - r.expense; return <span style={{ color: n >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600 }}>¥{fmtAmt(n)}</span>; } },
         ]}
       />
     </div>
@@ -109,11 +109,11 @@ const ReportsPage: React.FC = () => {
   const categoryTab = (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button type={categoryType === 'expense' ? 'primary' : 'default'} onClick={() => { setCategoryType('expense'); fetchCategory('expense'); }}>Expense</Button>
-        <Button type={categoryType === 'income' ? 'primary' : 'default'} onClick={() => { setCategoryType('income'); fetchCategory('income'); }}>Income</Button>
+        <Button type={categoryType === 'expense' ? 'primary' : 'default'} onClick={() => { setCategoryType('expense'); fetchCategory('expense'); }}>支出</Button>
+        <Button type={categoryType === 'income' ? 'primary' : 'default'} onClick={() => { setCategoryType('income'); fetchCategory('income'); }}>收入</Button>
       </Space>
       <div style={{ marginBottom: 16 }}>
-        <Text type="secondary">Total: ¥{fmtAmt(categoryData.total)} | {categoryData.items.reduce((s, i) => s + (i.count || 0), 0)} entries</Text>
+        <Text type="secondary">合计: ¥{fmtAmt(categoryData.total)} | {categoryData.items.reduce((s, i) => s + (i.count || 0), 0)} 笔</Text>
       </div>
       {categoryData.items.map((item, idx) => (
         <div key={item.id || item.name} style={{ marginBottom: 12 }}>
@@ -142,13 +142,13 @@ const ReportsPage: React.FC = () => {
       pagination={false}
       loading={loading}
       columns={[
-        { title: 'Account', dataIndex: 'name' },
-        { title: 'Type', dataIndex: 'accountType', width: 100 },
-        { title: 'Balance', dataIndex: 'currentBalance', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(v ?? 0)}</span> },
-        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
-        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
-        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
-        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?account=${r.id}`)}>View</a> },
+        { title: '账户', dataIndex: 'name' },
+        { title: '类型', dataIndex: 'accountType', width: 100 },
+        { title: '余额', dataIndex: 'currentBalance', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: '收入', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: '支出', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: '笔数', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?account=${r.id}`)}>查看流水</a> },
       ]}
     />
   );
@@ -162,12 +162,12 @@ const ReportsPage: React.FC = () => {
       pagination={false}
       loading={loading}
       columns={[
-        { title: 'Project', dataIndex: 'name' },
-        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
-        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
-        { title: 'Net', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
-        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
-        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?project=${encodeURIComponent(r.name)}`)}>View</a> },
+        { title: '项目', dataIndex: 'name' },
+        { title: '收入', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: '支出', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: '净额', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: '笔数', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?project=${encodeURIComponent(r.name)}`)}>查看流水</a> },
       ]}
     />
   );
@@ -181,12 +181,12 @@ const ReportsPage: React.FC = () => {
       pagination={false}
       loading={loading}
       columns={[
-        { title: 'Counterparty', dataIndex: 'name' },
-        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
-        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
-        { title: 'Net', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
-        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
-        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?counterparty=${encodeURIComponent(r.name)}`)}>View</a> },
+        { title: '商家', dataIndex: 'name' },
+        { title: '收入', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: '支出', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: '净额', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: '笔数', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?counterparty=${encodeURIComponent(r.name)}`)}>查看流水</a> },
       ]}
     />
   );
@@ -200,10 +200,10 @@ const ReportsPage: React.FC = () => {
       pagination={false}
       loading={loading}
       columns={[
-        { title: 'Member', dataIndex: 'name', render: (_: unknown, r: BreakdownItem) => (r as any).userName || r.name || 'Unknown' },
-        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
-        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
-        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '成员', dataIndex: 'name', render: (_: unknown, r: BreakdownItem) => (r as any).userName || r.name || '未知' },
+        { title: '收入', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: '支出', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: '笔数', dataIndex: 'count', width: 80, align: 'right' as const },
       ]}
     />
   );
@@ -211,19 +211,19 @@ const ReportsPage: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <Card
-        title={<Space><Typography.Title level={4} style={{ margin: 0 }}>Reports</Typography.Title>{yearSelector}</Space>}
+        title={<Space><Typography.Title level={4} style={{ margin: 0 }}>报表</Typography.Title>{yearSelector}</Space>}
       >
         {loading && !monthlyTrend.length ? (
           <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
         ) : (
           <Tabs
             items={[
-              { key: 'monthly', label: 'Monthly', children: monthlyTab },
-              { key: 'category', label: 'Category', children: categoryTab },
-              { key: 'account', label: 'Account', children: accountTab },
-              { key: 'project', label: 'Project', children: projectTab },
-              { key: 'counterparty', label: 'Counterparty', children: counterpartyTab },
-              { key: 'member', label: 'Member', children: memberTab },
+              { key: 'monthly', label: '月报', children: monthlyTab },
+              { key: 'category', label: '分类', children: categoryTab },
+              { key: 'account', label: '账户', children: accountTab },
+              { key: 'project', label: '项目', children: projectTab },
+              { key: 'counterparty', label: '商家', children: counterpartyTab },
+              { key: 'member', label: '成员', children: memberTab },
             ]}
           />
         )}

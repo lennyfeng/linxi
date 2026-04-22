@@ -57,15 +57,15 @@ const OverviewPage: React.FC = () => {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}><Spin size="large" /></div>;
   }
   if (!data) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>Failed to load overview data</div>;
+    return <div style={{ padding: 40, textAlign: 'center' }}>加载总览数据失败</div>;
   }
 
   const { todaySummary, periodSummaries, dailyTrend, categoryRanking, incomeBreakdown, userStats } = data;
 
   // Chart data
   const chartData = dailyTrend.flatMap((d) => [
-    { date: dayjs(d.date).format('MM/DD'), type: 'Income', value: d.income },
-    { date: dayjs(d.date).format('MM/DD'), type: 'Expense', value: d.expense },
+    { date: dayjs(d.date).format('MM/DD'), type: '收入', value: d.income },
+    { date: dayjs(d.date).format('MM/DD'), type: '支出', value: d.expense },
   ]);
 
   return (
@@ -82,7 +82,7 @@ const OverviewPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>
-                  <CalendarOutlined /> Today ({dayjs().format('YYYY-MM-DD')})
+                  <CalendarOutlined /> 今日 ({dayjs().format('YYYY-MM-DD')})
                 </Text>
                 <div style={{ fontSize: 36, fontWeight: 700, color: '#fff', fontFamily: 'DIN Alternate, monospace', marginTop: 4 }}>
                   ¥{fmtAmt(todaySummary.balance)}
@@ -90,13 +90,13 @@ const OverviewPage: React.FC = () => {
               </div>
               <Space size={32}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Income</div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>收入</div>
                   <div style={{ color: '#fff', fontWeight: 600, fontSize: 18, fontFamily: 'DIN Alternate, monospace' }}>
                     ¥{fmtAmt(todaySummary.income)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Expense</div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>支出</div>
                   <div style={{ color: '#fff', fontWeight: 600, fontSize: 18, fontFamily: 'DIN Alternate, monospace' }}>
                     ¥{fmtAmt(todaySummary.expense)}
                   </div>
@@ -106,7 +106,7 @@ const OverviewPage: React.FC = () => {
           </Card>
 
           {/* Monthly Trend Chart */}
-          <Card title={`${dayjs().format('YYYY-MM')} Monthly Trend`} style={{ borderRadius: 12, marginBottom: 24 }}>
+          <Card title={`${dayjs().format('YYYY-MM')} 月度趋势`} style={{ borderRadius: 12, marginBottom: 24 }}>
             {TrendChart ? (
               <TrendChart
                 data={chartData}
@@ -123,7 +123,7 @@ const OverviewPage: React.FC = () => {
               />
             ) : (
               <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-                {dailyTrend.length === 0 ? 'No data this month' : (
+                {dailyTrend.length === 0 ? '本月无数据' : (
                   <div style={{ width: '100%' }}>
                     {dailyTrend.map((d) => (
                       <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
@@ -139,15 +139,15 @@ const OverviewPage: React.FC = () => {
           </Card>
 
           {/* Income Breakdown */}
-          <Card title="Monthly Income" extra={<Text type="secondary">{incomeBreakdown.totalCount} entries | ¥{fmtAmt(incomeBreakdown.totalIncome)}</Text>} style={{ borderRadius: 12, marginBottom: 24 }}>
+          <Card title="本月收入" extra={<Text type="secondary">{incomeBreakdown.totalCount} 笔 | ¥{fmtAmt(incomeBreakdown.totalIncome)}</Text>} style={{ borderRadius: 12, marginBottom: 24 }}>
             {incomeBreakdown.items.length === 0 ? (
-              <Text type="secondary">No income this month</Text>
+              <Text type="secondary">本月无收入</Text>
             ) : (
               incomeBreakdown.items.map((item) => (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F0F2F5' }}>
                   <div>
                     <Text strong>{item.name}</Text>
-                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>{item.count} entries</Text>
+                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>{item.count} 笔</Text>
                   </div>
                   <Text style={{ color: '#FF8C42', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>
                     ¥{fmtAmt(item.amount)}
@@ -163,9 +163,9 @@ const OverviewPage: React.FC = () => {
           {/* Period Summary Cards */}
           <Card style={{ borderRadius: 12, marginBottom: 24 }} bodyStyle={{ padding: 0 }}>
             {[
-              { label: 'This Week', data: periodSummaries.week, range: `${dayjs().startOf('week').add(1, 'day').format('MM/DD')} - ${dayjs().endOf('week').add(1, 'day').format('MM/DD')}` },
-              { label: 'This Month', data: periodSummaries.month, range: `${dayjs().startOf('month').format('MM/DD')} - ${dayjs().endOf('month').format('MM/DD')}` },
-              { label: 'This Year', data: periodSummaries.year, range: dayjs().format('YYYY') },
+              { label: '本周', data: periodSummaries.week, range: `${dayjs().startOf('week').add(1, 'day').format('MM/DD')} - ${dayjs().endOf('week').add(1, 'day').format('MM/DD')}` },
+              { label: '本月', data: periodSummaries.month, range: `${dayjs().startOf('month').format('MM/DD')} - ${dayjs().endOf('month').format('MM/DD')}` },
+              { label: '本年', data: periodSummaries.year, range: dayjs().format('YYYY') },
             ].map((period, idx) => (
               <div
                 key={period.label}
@@ -201,12 +201,12 @@ const OverviewPage: React.FC = () => {
 
           {/* Category Expense Ranking */}
           <Card
-            title="Expense by Category"
-            extra={<Text type="secondary">{categoryRanking.totalCount} entries | ¥{fmtAmt(categoryRanking.totalExpense)}</Text>}
+            title="分类支出排行"
+            extra={<Text type="secondary">{categoryRanking.totalCount} 笔 | ¥{fmtAmt(categoryRanking.totalExpense)}</Text>}
             style={{ borderRadius: 12, marginBottom: 24 }}
           >
             {categoryRanking.items.length === 0 ? (
-              <Text type="secondary">No expenses this month</Text>
+              <Text type="secondary">本月无支出</Text>
             ) : (
               categoryRanking.items.map((item, idx) => (
                 <div key={item.id} style={{ marginBottom: 12 }}>
@@ -235,11 +235,11 @@ const OverviewPage: React.FC = () => {
 
           {/* Per-User Stats */}
           <Card
-            title={<><UserOutlined /> Monthly User Stats</>}
+            title={<><UserOutlined /> 本月成员统计</>}
             style={{ borderRadius: 12, marginBottom: 24 }}
           >
             {userStats.length === 0 ? (
-              <Text type="secondary">No data</Text>
+              <Text type="secondary">无数据</Text>
             ) : (
               userStats.map((u) => (
                 <div key={u.userId || u.userName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F0F2F5' }}>
@@ -251,11 +251,11 @@ const OverviewPage: React.FC = () => {
                   </Space>
                   <Space size={16}>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 11, color: '#999' }}>Income</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>收入</div>
                       <Text style={{ color: '#FF8C42', fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(u.income)}</Text>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 11, color: '#999' }}>Expense</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>支出</div>
                       <Text style={{ color: '#52C41A', fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(u.expense)}</Text>
                     </div>
                   </Space>
