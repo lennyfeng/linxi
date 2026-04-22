@@ -8,6 +8,9 @@ interface CounterpartyItem {
   id: number;
   name: string;
   description: string | null;
+  contact: string | null;
+  phone: string | null;
+  remark: string | null;
   sortOrder: number;
   status: string;
   stats?: { income: number; expense: number; count: number };
@@ -22,6 +25,7 @@ const CounterpartyListPage: React.FC = () => {
   const [data, setData] = useState<CounterpartyItem[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editItem, setEditItem] = useState<CounterpartyItem | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
 
@@ -48,7 +52,7 @@ const CounterpartyListPage: React.FC = () => {
 
   const openEdit = (item: CounterpartyItem) => {
     setEditItem(item);
-    form.setFieldsValue({ name: item.name, description: item.description });
+    form.setFieldsValue({ name: item.name, description: item.description, contact: item.contact, phone: item.phone, remark: item.remark });
     setDrawerOpen(true);
   };
 
@@ -82,6 +86,27 @@ const CounterpartyListPage: React.FC = () => {
     }
   };
 
+  const handleDrop = async (targetId: number) => {
+    if (!draggingId || draggingId === targetId) return;
+    const current = [...data];
+    const fromIndex = current.findIndex((item) => item.id === draggingId);
+    const toIndex = current.findIndex((item) => item.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const [moved] = current.splice(fromIndex, 1);
+    if (!moved) return;
+    current.splice(toIndex, 0, moved);
+    const reordered = current.map((item, index) => ({ ...item, sortOrder: (index + 1) * 10 }));
+    setData(reordered);
+    setDraggingId(null);
+    try {
+      await apiClient.put('/ledger/counterparties/managed/sort', reordered.map((item) => ({ id: item.id, sortOrder: item.sortOrder })));
+      message.success('排序已更新');
+    } catch {
+      message.error('排序保存失败');
+      fetchData();
+    }
+  };
+
   const columns = [
     {
       title: '商家名称',
@@ -112,7 +137,18 @@ const CounterpartyListPage: React.FC = () => {
         <span style={{ color: '#FF6B6B', fontFamily: 'DIN Alternate, monospace' }}>-¥{fmtAmt(r.stats?.expense ?? 0)}</span>
       ),
     },
+    {
+      title: '净额',
+      key: 'net',
+      width: 130,
+      align: 'right' as const,
+      render: (_: unknown, r: CounterpartyItem) => {
+        const net = (r.stats?.income ?? 0) - (r.stats?.expense ?? 0);
+        return <span style={{ color: net >= 0 ? '#00B894' : '#FF6B6B', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(net)}</span>;
+      },
+    },
     { title: '笔数', key: 'count', width: 80, align: 'right' as const, render: (_: unknown, r: CounterpartyItem) => r.stats?.count ?? 0 },
+    { title: '联系人', dataIndex: 'contact', width: 120, render: (v: string | null) => v || '-' },
     {
       title: '操作',
       key: 'actions',
@@ -144,7 +180,21 @@ const CounterpartyListPage: React.FC = () => {
           </Space>
         }
       >
-        <Table dataSource={data} rowKey="id" size="middle" pagination={false} loading={loading} columns={columns} />
+        <Table
+          dataSource={data}
+          rowKey="id"
+          size="middle"
+          pagination={false}
+          loading={loading}
+          columns={columns}
+          onRow={(record) => ({
+            draggable: true,
+            onDragStart: () => setDraggingId(record.id),
+            onDragOver: (event) => event.preventDefault(),
+            onDrop: () => void handleDrop(record.id),
+            style: { cursor: 'move' },
+          })}
+        />
       </Card>
 
       <Drawer
@@ -165,6 +215,15 @@ const CounterpartyListPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} placeholder="商家描述（可选）" />
+          </Form.Item>
+          <Form.Item name="contact" label="联系人">
+            <Input placeholder="联系人（可选）" />
+          </Form.Item>
+          <Form.Item name="phone" label="电话">
+            <Input placeholder="电话（可选）" />
+          </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={3} placeholder="备注（可选）" />
           </Form.Item>
         </Form>
       </Drawer>

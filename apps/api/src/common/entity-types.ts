@@ -217,6 +217,10 @@ export interface LedgerAccount {
   currentBalance: number;
   status: string;
   remark?: string | null;
+  accountGroup?: string | null;
+  includeInAssets?: number;
+  bankName?: string | null;
+  accountNumber?: string | null;
 }
 
 export interface LedgerCategory {
@@ -244,7 +248,9 @@ export interface LedgerTransaction {
   amountCny?: number | null;
   paymentAccount?: string | null;
   categoryId: number | null;
+  counterpartyId?: number | null;
   counterpartyName: string | null;
+  projectId?: number | null;
   projectName?: string | null;
   summary?: string | null;
   remark?: string | null;
@@ -253,6 +259,8 @@ export interface LedgerTransaction {
   invoiceRequired?: number;
   status?: string;
   createdBy?: string | null;
+  createdAt?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 export interface ImportBatch {
@@ -292,7 +300,10 @@ export interface TransactionMatch {
 export interface TransactionAttachment {
   id: number;
   transactionId: number;
+  fileKey?: string | null;
   fileName: string;
+  fileSize?: number | null;
+  mimeType?: string | null;
   fileUrl: string | null;
 }
 

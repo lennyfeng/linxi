@@ -11,6 +11,7 @@ import {
   Empty,
   Dropdown,
   Popconfirm,
+  Image,
   message,
 } from 'antd';
 import {
@@ -52,6 +53,7 @@ interface Transaction {
   reimbursementStatus: string | null;
   invoiceRequired: number;
   status: string;
+  thumbnailUrl?: string | null;
 }
 
 interface Account { id: number; accountName: string; accountType: string; currency: string; }
@@ -337,6 +339,12 @@ const TransactionListPage: React.FC = () => {
 
   /* ─── Date-grouped transaction list ─── */
   const columns = [
+    {
+      title: '凭证',
+      dataIndex: 'thumbnailUrl',
+      width: 72,
+      render: (value: string | null | undefined) => value ? <Image src={value} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 8 }} preview={false} /> : '-',
+    },
     {
       title: '类型',
       dataIndex: 'transactionType',

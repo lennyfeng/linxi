@@ -75,15 +75,20 @@ export async function listAccounts(filters: LedgerFilters, page: number, pageSiz
       id,
       name AS accountName,
       type AS accountType,
+      account_group AS accountGroup,
       account_source_type AS accountSourceType,
       currency,
       initial_balance AS openingBalance,
       current_balance AS currentBalance,
-      status`,
+      status,
+      include_in_assets AS includeInAssets,
+      remark,
+      bank_name AS bankName,
+      account_number AS accountNumber`,
     'FROM accounts',
     whereClauses,
     params,
-    'ORDER BY id DESC',
+    'ORDER BY account_group ASC, id ASC',
     page,
     pageSize,
   );
@@ -95,12 +100,16 @@ export async function getAccountById(id: number): Promise<LedgerAccount | null> 
       id,
       name AS accountName,
       type AS accountType,
+      account_group AS accountGroup,
       account_source_type AS accountSourceType,
       currency,
       initial_balance AS openingBalance,
       current_balance AS currentBalance,
       status,
-      remark
+      remark,
+      include_in_assets AS includeInAssets,
+      bank_name AS bankName,
+      account_number AS accountNumber
     FROM accounts
     WHERE id = ?`,
     [id],
@@ -114,22 +123,30 @@ export async function createAccountRecord(payload: Partial<LedgerAccount>): Prom
     `INSERT INTO accounts (
       name,
       type,
+      account_group,
       account_source_type,
       currency,
       initial_balance,
       current_balance,
+      include_in_assets,
       status,
-      remark
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      remark,
+      bank_name,
+      account_number
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       payload.accountName,
       payload.accountType,
+      payload.accountGroup || null,
       payload.accountSourceType,
       payload.currency,
       payload.openingBalance,
       payload.currentBalance,
+      payload.includeInAssets == null ? 1 : payload.includeInAssets,
       payload.status,
       payload.remark,
+      payload.bankName || null,
+      payload.accountNumber || null,
     ],
   );
 
@@ -274,14 +291,23 @@ export async function listTransactions(filters: LedgerFilters, page: number, pag
       t.amount_cny AS amountCny,
       t.payment_account AS paymentAccount,
       t.category_id AS categoryId,
+      t.counterparty_id AS counterpartyId,
       t.counterparty AS counterpartyName,
+      t.project_id AS projectId,
       t.project_name AS projectName,
       t.description AS summary,
       t.remark,
       t.reimbursement_required AS reimbursementRequired,
       t.reimbursement_status AS reimbursementStatus,
       t.invoice_required AS invoiceRequired,
-      t.status`,
+      t.status,
+      (
+        SELECT ta.file_key
+        FROM transaction_attachments ta
+        WHERE ta.transaction_id = t.id
+        ORDER BY ta.id DESC
+        LIMIT 1
+      ) AS thumbnailUrl`,
     'FROM transactions t LEFT JOIN accounts a ON t.account_id = a.id LEFT JOIN categories c ON t.category_id = c.id',
     whereClauses,
     params,
@@ -309,7 +335,9 @@ export async function getTransactionById(id: number): Promise<LedgerTransaction 
       amount_cny AS amountCny,
       payment_account AS paymentAccount,
       category_id AS categoryId,
+      counterparty_id AS counterpartyId,
       counterparty AS counterpartyName,
+      project_id AS projectId,
       project_name AS projectName,
       description AS summary,
       remark,
@@ -317,7 +345,8 @@ export async function getTransactionById(id: number): Promise<LedgerTransaction 
       reimbursement_status AS reimbursementStatus,
       invoice_required AS invoiceRequired,
       status,
-      created_by AS createdBy
+      created_by AS createdBy,
+      created_at AS createdAt
     FROM transactions
     WHERE id = ?`,
     [id],
@@ -342,7 +371,9 @@ export async function createTransactionRecord(payload: Partial<LedgerTransaction
       amount_cny,
       payment_account,
       category_id,
+      counterparty_id,
       counterparty,
+      project_id,
       project_name,
       description,
       remark,
@@ -351,7 +382,7 @@ export async function createTransactionRecord(payload: Partial<LedgerTransaction
       invoice_required,
       status,
       created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       payload.transactionNo,
       payload.transactionType,
@@ -366,7 +397,9 @@ export async function createTransactionRecord(payload: Partial<LedgerTransaction
       payload.amountCny,
       payload.paymentAccount,
       payload.categoryId,
+      payload.counterpartyId ?? null,
       payload.counterpartyName,
+      payload.projectId ?? null,
       payload.projectName,
       payload.summary,
       payload.remark,
@@ -398,7 +431,9 @@ export async function updateTransactionRecord(id: number, payload: Record<string
     amountCny: 'amount_cny',
     paymentAccount: 'payment_account',
     categoryId: 'category_id',
+    counterpartyId: 'counterparty_id',
     counterpartyName: 'counterparty',
+    projectId: 'project_id',
     projectName: 'project_name',
     summary: 'description',
     remark: 'remark',
@@ -465,10 +500,12 @@ export async function updateAccountRecord(id: number, payload: Record<string, un
   const fieldMap: Record<string, string> = {
     accountName: 'name',
     accountType: 'type',
+    accountGroup: 'account_group',
     accountSourceType: 'account_source_type',
     currency: 'currency',
     openingBalance: 'initial_balance',
     currentBalance: 'current_balance',
+    includeInAssets: 'include_in_assets',
     status: 'status',
     remark: 'remark',
     bankName: 'bank_name',
@@ -667,7 +704,10 @@ export async function listTransactionAttachmentsByTransactionId(transactionId: n
     `SELECT
       id,
       transaction_id AS transactionId,
+      file_key AS fileKey,
       file_name AS fileName,
+      file_size AS fileSize,
+      mime_type AS mimeType,
       file_url AS fileUrl
     FROM transaction_attachments
     WHERE transaction_id = ?
@@ -676,17 +716,48 @@ export async function listTransactionAttachmentsByTransactionId(transactionId: n
   );
 }
 
-export async function createTransactionAttachment(transactionId: number, fileName: string, fileUrl: string): Promise<TransactionAttachment> {
+export async function getTransactionAttachmentById(id: number): Promise<TransactionAttachment | null> {
+  const rows = await query<TransactionAttachment>(
+    `SELECT
+      id,
+      transaction_id AS transactionId,
+      file_key AS fileKey,
+      file_name AS fileName,
+      file_size AS fileSize,
+      mime_type AS mimeType,
+      file_url AS fileUrl
+    FROM transaction_attachments
+    WHERE id = ?`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
+export async function deleteTransactionAttachmentById(id: number): Promise<void> {
+  await query('DELETE FROM transaction_attachments WHERE id = ?', [id]);
+}
+
+export async function createTransactionAttachment(
+  transactionId: number,
+  fileName: string,
+  fileUrl: string,
+  fileKey?: string | null,
+  fileSize?: number | null,
+  mimeType?: string | null,
+): Promise<TransactionAttachment> {
   const result = await query(
-    `INSERT INTO transaction_attachments (transaction_id, file_name, file_url)
-    VALUES (?, ?, ?)`,
-    [transactionId, fileName, fileUrl],
+    `INSERT INTO transaction_attachments (transaction_id, file_key, file_name, file_size, mime_type, file_url)
+    VALUES (?, ?, ?, ?, ?, ?)`,
+    [transactionId, fileKey || null, fileName, fileSize || 0, mimeType || 'application/octet-stream', fileUrl],
   );
 
   return {
     id: Number((result as any).insertId),
     transactionId,
+    fileKey: fileKey || null,
     fileName,
+    fileSize: fileSize || 0,
+    mimeType: mimeType || 'application/octet-stream',
     fileUrl,
   };
 }
@@ -1053,6 +1124,9 @@ export interface LedgerCounterparty {
   id: number;
   name: string;
   description: string | null;
+  contact?: string | null;
+  phone?: string | null;
+  remark?: string | null;
   sortOrder: number;
   status: string;
 }
@@ -1061,7 +1135,7 @@ export async function listLedgerCounterparties(status?: string): Promise<LedgerC
   const where = status ? 'WHERE status = ?' : '';
   const params = status ? [status] : [];
   return await query<LedgerCounterparty>(
-    `SELECT id, name, description, sort_order AS sortOrder, status
+    `SELECT id, name, description, contact, phone, remark, sort_order AS sortOrder, status
      FROM ledger_counterparties ${where} ORDER BY sort_order ASC, id ASC`,
     params,
   );
@@ -1069,7 +1143,7 @@ export async function listLedgerCounterparties(status?: string): Promise<LedgerC
 
 export async function getLedgerCounterpartyById(id: number): Promise<LedgerCounterparty | null> {
   const rows = await query<LedgerCounterparty>(
-    'SELECT id, name, description, sort_order AS sortOrder, status FROM ledger_counterparties WHERE id = ?',
+    'SELECT id, name, description, contact, phone, remark, sort_order AS sortOrder, status FROM ledger_counterparties WHERE id = ?',
     [id],
   );
   return rows[0] || null;
@@ -1077,8 +1151,8 @@ export async function getLedgerCounterpartyById(id: number): Promise<LedgerCount
 
 export async function createLedgerCounterparty(payload: Partial<LedgerCounterparty>): Promise<LedgerCounterparty | null> {
   const result: any = await query(
-    'INSERT INTO ledger_counterparties (name, description, sort_order, status) VALUES (?, ?, ?, ?)',
-    [payload.name, payload.description || null, payload.sortOrder || 0, payload.status || 'active'],
+    'INSERT INTO ledger_counterparties (name, description, contact, phone, remark, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [payload.name, payload.description || null, payload.contact || null, payload.phone || null, payload.remark || null, payload.sortOrder || 0, payload.status || 'active'],
   );
   return await getLedgerCounterpartyById(Number(result.insertId));
 }
@@ -1086,7 +1160,7 @@ export async function createLedgerCounterparty(payload: Partial<LedgerCounterpar
 export async function updateLedgerCounterparty(id: number, payload: Partial<LedgerCounterparty>): Promise<LedgerCounterparty | null> {
   const sets: string[] = [];
   const params: unknown[] = [];
-  const fieldMap: Record<string, string> = { name: 'name', description: 'description', sortOrder: 'sort_order', status: 'status' };
+  const fieldMap: Record<string, string> = { name: 'name', description: 'description', contact: 'contact', phone: 'phone', remark: 'remark', sortOrder: 'sort_order', status: 'status' };
   for (const [key, col] of Object.entries(fieldMap)) {
     if ((payload as any)[key] !== undefined) {
       sets.push(`${col} = ?`);

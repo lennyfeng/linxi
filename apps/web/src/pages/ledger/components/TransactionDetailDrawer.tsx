@@ -4,6 +4,8 @@ import {
   Descriptions,
   Drawer,
   Empty,
+  Image,
+  Popconfirm,
   Space,
   Spin,
   Tag,
@@ -46,6 +48,14 @@ interface TxDetail {
   status: string;
   createdBy: string | null;
   createdAt?: string;
+  attachments: AttachmentItem[];
+}
+
+interface AttachmentItem {
+  id: number;
+  fileName: string;
+  fileUrl: string | null;
+  mimeType?: string | null;
 }
 
 const fmtAmt = (n: number) =>
@@ -69,14 +79,19 @@ const TransactionDetailDrawer: React.FC<TransactionDetailDrawerProps> = ({
   hasNext,
 }) => {
   const [tx, setTx] = useState<TxDetail | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !transactionId) { setTx(null); return; }
+    if (!open || !transactionId) { setTx(null); setAttachments([]); return; }
     setLoading(true);
     apiClient
       .get(`/ledger/transactions/${transactionId}`)
-      .then((r) => setTx(r.data?.data ?? r.data))
+      .then((r) => {
+        const detail = r.data?.data ?? r.data;
+        setTx(detail?.transaction ?? detail);
+        setAttachments(detail?.attachments ?? []);
+      })
       .finally(() => setLoading(false));
   }, [open, transactionId]);
 
@@ -86,6 +101,12 @@ const TransactionDetailDrawer: React.FC<TransactionDetailDrawerProps> = ({
     onDeleted();
     onClose();
   };
+
+ const handleDeleteAttachment = async (attachmentId: number) => {
+   if (!tx) return;
+   await apiClient.delete(`/ledger/transactions/${tx.id}/attachments/${attachmentId}`);
+   setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
+ };
 
   const typeInfo = tx ? typeColorMap[tx.transactionType] ?? { color: '#999', label: tx.transactionType } : null;
   const prefix = tx?.transactionType === 'income' ? '+' : tx?.transactionType === 'expense' ? '-' : '';
@@ -196,6 +217,28 @@ const TransactionDetailDrawer: React.FC<TransactionDetailDrawerProps> = ({
               <div style={{ fontSize: 12, color: '#6B7B8D', marginBottom: 4 }}>备注</div>
               <div style={{ padding: '8px 12px', background: '#F5F7FA', borderRadius: 6 }}>
                 {tx.remark}
+              </div>
+            </div>
+          )}
+
+          {attachments.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: '#6B7B8D', marginBottom: 8 }}>附件</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {attachments.map((item) => (
+                  <div key={item.id} style={{ width: 104 }}>
+                    {item.fileUrl && String(item.mimeType || '').startsWith('image/') ? (
+                      <Image src={item.fileUrl} width={104} height={104} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                    ) : (
+                      <a href={item.fileUrl || '#'} target="_blank" rel="noreferrer" style={{ display: 'flex', width: 104, height: 104, border: '1px solid #F0F0F0', borderRadius: 8, alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677FF', padding: 8, textAlign: 'center' }}>
+                        {item.fileName}
+                      </a>
+                    )}
+                   <Popconfirm title="确认删除此附件？" okText="确认" cancelText="取消" onConfirm={() => handleDeleteAttachment(item.id)}>
+                     <Button type="link" size="small" danger style={{ padding: 0, marginTop: 4 }}>删除</Button>
+                   </Popconfirm>
+                  </div>
+                ))}
               </div>
             </div>
           )}

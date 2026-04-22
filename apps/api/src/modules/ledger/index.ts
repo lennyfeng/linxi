@@ -20,6 +20,7 @@ import {
   createImportBatch,
   createTransaction,
   createTransactionMatch,
+  deleteTransactionAttachment,
   deleteTransaction,
   deleteTransactionMatch,
   getAccountDetail,
@@ -222,6 +223,14 @@ export const handleLedgerRoutes: RouteHandler = async (req, res, url, ctx) => {
     const id = getIdFromPath(url.pathname, '/ledger/transactions/');
     const body = await readJsonBody(req);
     sendJson(res, await uploadTransactionAttachment(id, body), { ...responseOptions, statusCode: 201 });
+    return true;
+  }
+
+  if (req.method === 'DELETE' && url.pathname.match(/^\/ledger\/transactions\/\d+\/attachments\/\d+$/)) {
+    const parts = url.pathname.split('/');
+    const transactionId = Number(parts[3]);
+    const attachmentId = Number(parts[5]);
+    sendJson(res, await deleteTransactionAttachment(transactionId, attachmentId), responseOptions);
     return true;
   }
 

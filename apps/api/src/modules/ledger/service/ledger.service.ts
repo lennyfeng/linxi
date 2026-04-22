@@ -1,18 +1,22 @@
 import { AppError } from '../../../common/errors.js';
 import { getListPagination } from '../../../common/pagination.js';
 import type { JsonBody } from '../../../common/types.js';
+import { deleteFile, getPresignedUrl, uploadFile } from '../../../common/storage.js';
+import { generateFileKey } from '../../../common/upload.js';
 import {
   createAccountRecord,
   createCategoryRecord,
   createImportBatchRecord,
   createMatchRecord,
   createTransactionAttachment,
+  deleteTransactionAttachmentById,
   createTransactionRecord,
   deleteMatchRecord,
   deleteTransactionRecord,
   getAccountById,
   getImportBatchById,
   getMatchById,
+  getTransactionAttachmentById,
   getTransactionById,
   listAccounts,
   listCategories,
@@ -117,12 +121,16 @@ export async function createAccount(body: JsonBody) {
   return await createAccountRecord({
     accountName: body.accountName as string,
     accountType: (body.accountType as string) || 'bank',
+    accountGroup: (body.accountGroup as string) || null,
     accountSourceType: (body.accountSourceType as string) || 'manual',
     currency: (body.currency as string) || 'CNY',
     openingBalance,
     currentBalance,
+    includeInAssets: body.includeInAssets == null ? 1 : Number(body.includeInAssets ? 1 : 0),
     status: (body.status as string) || 'active',
     remark: (body.remark as string) || null,
+    bankName: (body.bankName as string) || null,
+    accountNumber: (body.accountNumber as string) || null,
   });
 }
 
@@ -155,19 +163,36 @@ export async function createCategory(body: JsonBody) {
 
 export async function getTransactions(query: JsonBody = {}) {
   const { page, pageSize } = getListPagination(query);
-  return await listTransactions(getListFilters(query), page, pageSize);
+  const result = await listTransactions(getListFilters(query), page, pageSize);
+  return {
+    ...result,
+    list: await Promise.all(result.list.map(async (item) => ({
+      ...item,
+      thumbnailUrl: item.thumbnailUrl ? await getPresignedUrl(item.thumbnailUrl) : null,
+    }))),
+  };
 }
 
 export async function getTransactionDetail(id: number) {
   const transaction = ensureExistingResource(await getTransactionById(id), 'transactionId', id);
   const matches = await listMatchesByTransactionId(id);
-  const attachments = await listTransactionAttachmentsByTransactionId(id);
+  const attachments = await Promise.all(
+    (await listTransactionAttachmentsByTransactionId(id)).map(async (item) => ({
+      ...item,
+      fileUrl: item.fileKey ? await getPresignedUrl(item.fileKey) : item.fileUrl,
+    })),
+  );
   return { transaction, matches, attachments };
 }
 
 export async function getTransactionAttachments(transactionId: number) {
   ensureExistingResource(await getTransactionById(transactionId), 'transactionId', transactionId);
-  return await listTransactionAttachmentsByTransactionId(transactionId);
+  return await Promise.all(
+    (await listTransactionAttachmentsByTransactionId(transactionId)).map(async (item) => ({
+      ...item,
+      fileUrl: item.fileKey ? await getPresignedUrl(item.fileKey) : item.fileUrl,
+    })),
+  );
 }
 
 export async function uploadTransactionAttachment(transactionId: number, body: JsonBody) {
@@ -175,10 +200,46 @@ export async function uploadTransactionAttachment(transactionId: number, body: J
   if (!transaction) {
     throw new AppError(404, 'resource_not_found', { field: 'transactionId' });
   }
-  if (!body.fileUrl) {
-    throw new AppError(400, 'invalid_request', { field: 'fileUrl', reason: 'required' });
+  const fileName = (body.fileName as string) || 'attachment.bin';
+  const mimeType = (body.mimeType as string) || 'application/octet-stream';
+  const fileSize = body.fileSize == null ? null : Number(body.fileSize);
+
+  if (body.contentBase64) {
+    const buffer = Buffer.from(String(body.contentBase64), 'base64');
+    const fileKey = generateFileKey(fileName, 'ledger/transactions');
+    const storedUrl = await uploadFile(fileKey, buffer, mimeType);
+    const attachment = await createTransactionAttachment(
+      transactionId,
+      fileName,
+      storedUrl,
+      fileKey,
+      fileSize ?? buffer.length,
+      mimeType,
+    );
+    return {
+      ...attachment,
+      fileUrl: await getPresignedUrl(fileKey),
+    };
   }
-  return await createTransactionAttachment(transactionId, (body.fileName as string) || 'voucher-image.jpg', body.fileUrl as string);
+
+  if (!body.fileUrl) {
+    throw new AppError(400, 'invalid_request', { field: 'contentBase64', reason: 'required' });
+  }
+
+  return await createTransactionAttachment(transactionId, fileName, body.fileUrl as string, null, fileSize, mimeType);
+}
+
+export async function deleteTransactionAttachment(transactionId: number, attachmentId: number) {
+  ensureExistingResource(await getTransactionById(transactionId), 'transactionId', transactionId);
+  const attachment = ensureExistingResource(await getTransactionAttachmentById(attachmentId), 'attachmentId', attachmentId);
+  if (attachment.transactionId !== transactionId) {
+    throw new AppError(400, 'invalid_request', { field: 'attachmentId', reason: 'does_not_belong_to_transaction' });
+  }
+  if (attachment.fileKey) {
+    await deleteFile(attachment.fileKey);
+  }
+  await deleteTransactionAttachmentById(attachmentId);
+  return { deleted: true, id: attachmentId };
 }
 
 export async function createTransaction(body: JsonBody) {
@@ -234,7 +295,9 @@ export async function createTransaction(body: JsonBody) {
     amountCny,
     paymentAccount: (body.paymentAccount as string) || null,
     categoryId: (body.categoryId as number) || null,
+    counterpartyId: body.counterpartyId == null ? null : Number(body.counterpartyId),
     counterpartyName: (body.counterpartyName as string) || null,
+    projectId: body.projectId == null ? null : Number(body.projectId),
     projectName: (body.projectName as string) || null,
     summary: (body.summary as string) || null,
     remark: (body.remark as string) || null,
@@ -251,6 +314,7 @@ export async function updateTransaction(id: number, body: JsonBody) {
 }
 
 export async function deleteTransaction(id: number, operatorId?: string | number | null) {
+  const attachments = await listTransactionAttachmentsByTransactionId(id);
   const txn = ensureExistingResource(await getTransactionById(id), 'transactionId', id);
   await deleteTransactionRecord(id, {
     transactionType: txn.transactionType ?? '',
@@ -259,6 +323,7 @@ export async function deleteTransaction(id: number, operatorId?: string | number
     transferInAccountId: txn.transferInAccountId ?? null,
     transferInAmount: txn.transferInAmount != null ? Number(txn.transferInAmount) : null,
   }, operatorId);
+  await Promise.allSettled(attachments.filter((item) => item.fileKey).map((item) => deleteFile(item.fileKey as string)));
   return { deleted: true, id };
 }
 
@@ -459,7 +524,15 @@ export async function getLedgerCounterpartiesList(status?: string) {
 
 export async function createCounterparty(body: JsonBody) {
   if (!body.name) throw new AppError(400, 'invalid_request', { field: 'name', reason: 'required' });
-  return await createCounterpartyRepo({ name: body.name as string, description: (body.description as string) || null, sortOrder: Number(body.sortOrder || 0) });
+  return await createCounterpartyRepo({
+    name: body.name as string,
+    description: (body.description as string) || null,
+    contact: (body.contact as string) || null,
+    phone: (body.phone as string) || null,
+    remark: (body.remark as string) || null,
+    sortOrder: Number(body.sortOrder || 0),
+    status: (body.status as string) || 'active',
+  });
 }
 
 export async function updateCounterparty(id: number, body: JsonBody) {

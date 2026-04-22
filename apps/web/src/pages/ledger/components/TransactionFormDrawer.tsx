@@ -7,6 +7,7 @@ import {
   Drawer,
   Dropdown,
   Form,
+  Image,
   Input,
   InputNumber,
   message,
@@ -15,6 +16,7 @@ import {
   Tabs,
   Tag,
   TreeSelect,
+  Upload,
 } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -22,6 +24,7 @@ import apiClient from '@/api/client';
 
 interface Account { id: number; accountName: string; currency: string; }
 interface Category { id: number; categoryName: string; categoryType: string; parentId: number | null; }
+interface AttachmentItem { id: number; fileName: string; fileUrl: string | null; mimeType?: string | null; }
 
 interface TransactionFormDrawerProps {
   open: boolean;
@@ -55,6 +58,8 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [accountCurrency, setAccountCurrency] = useState('CNY');
   const [projects, setProjects] = useState<{ id: number; name: string; parentId: number | null }[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const isTransfer = txType === 'transfer';
   const isEdit = !!editId;
@@ -88,8 +93,11 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
     if (!open) return;
     if (editId) {
       apiClient.get(`/ledger/transactions/${editId}`).then((r) => {
-        const tx = r.data?.data ?? r.data;
+        const detail = r.data?.data ?? r.data;
+        const tx = detail?.transaction ?? detail;
         if (!tx) return;
+        setAttachments(detail?.attachments ?? []);
+        setPendingFiles([]);
         setTxType(tx.transactionType || 'expense');
         setIsSubmitted(tx.status === 'submitted');
         setAccountCurrency(tx.currency || 'CNY');
@@ -110,6 +118,8 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
       });
     } else {
       setIsSubmitted(false);
+      setAttachments([]);
+      setPendingFiles([]);
       form.resetFields();
       form.setFieldsValue({
         transactionDate: dayjs(),
@@ -125,6 +135,38 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
       const data = r.data?.data ?? r.data ?? [];
       setCounterpartySuggestions(data.map((d: any) => ({ value: d.name })));
     });
+  };
+
+  const loadAttachments = async (transactionId: number) => {
+    const res = await apiClient.get(`/ledger/transactions/${transactionId}/attachments`);
+    setAttachments(res.data?.data ?? res.data ?? []);
+  };
+
+  const readFileAsBase64 = async (file: File) => {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || '');
+        resolve(result.includes(',') ? result.split(',')[1] || '' : result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const uploadPendingAttachments = async (transactionId: number) => {
+    if (!pendingFiles.length) return;
+    for (const file of pendingFiles) {
+      const contentBase64 = await readFileAsBase64(file);
+      await apiClient.post(`/ledger/transactions/${transactionId}/attachments`, {
+        fileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size,
+        contentBase64,
+      });
+    }
+    await loadAttachments(transactionId);
+    setPendingFiles([]);
   };
 
   const doSave = async (status: string) => {
@@ -150,12 +192,18 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         status,
       };
 
+      let savedId = editId ?? null;
       if (editId) {
         await apiClient.put(`/ledger/transactions/${editId}`, payload);
         message.success('流水已更新');
       } else {
-        await apiClient.post('/ledger/transactions', payload);
+        const res = await apiClient.post('/ledger/transactions', payload);
+        savedId = res.data?.data?.id ?? res.data?.id ?? null;
         message.success('流水已创建');
+      }
+
+      if (savedId) {
+        await uploadPendingAttachments(savedId);
       }
 
       if (continuous && !editId) {
@@ -166,6 +214,8 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
           transactionDate: preserveDate,
           accountId: preserveAccount,
         });
+        setAttachments([]);
+        setPendingFiles([]);
       } else {
         onClose();
       }
@@ -331,6 +381,43 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
 
         <Form.Item name="remark" label="备注">
           <Input.TextArea rows={3} maxLength={500} showCount />
+        </Form.Item>
+
+        <Form.Item label="附件">
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Upload
+              multiple
+              accept="image/*"
+              beforeUpload={(file) => {
+                setPendingFiles((prev) => [...prev, file]);
+                return false;
+              }}
+              fileList={pendingFiles.map((file, index) => ({ uid: `${file.name}-${index}`, name: file.name, status: 'done' as const }))}
+              onRemove={(file) => {
+                setPendingFiles((prev) => prev.filter((item, index) => `${item.name}-${index}` !== file.uid));
+              }}
+            >
+              <Button>选择图片</Button>
+            </Upload>
+            {!isEdit && pendingFiles.length > 0 && (
+              <div style={{ fontSize: 12, color: '#8C8C8C' }}>新建流水时会在保存后自动上传附件</div>
+            )}
+            {attachments.length > 0 && (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {attachments.map((item) => (
+                  <div key={item.id} style={{ width: 96 }}>
+                    {item.fileUrl && String(item.mimeType || '').startsWith('image/') ? (
+                      <Image src={item.fileUrl} width={96} height={96} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                    ) : (
+                      <div style={{ width: 96, height: 96, border: '1px solid #F0F0F0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#8C8C8C', padding: 8, textAlign: 'center' }}>
+                        {item.fileName}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Space>
         </Form.Item>
 
         {!isTransfer && (

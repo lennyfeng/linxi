@@ -39,6 +39,7 @@ const ProjectListPage: React.FC = () => {
   const [data, setData] = useState<ProjectItem[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editItem, setEditItem] = useState<ProjectItem | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
 
@@ -101,19 +102,54 @@ const ProjectListPage: React.FC = () => {
     }
   };
 
-  // Build TreeSelect options (only depth <= 2 can be parent)
+  const handleDrop = async (target: ProjectItem) => {
+    if (!draggingId || draggingId === target.id) return;
+    const dragged = data.find((item) => item.id === draggingId);
+    if (!dragged) return;
+    if ((dragged.parentId ?? null) !== (target.parentId ?? null)) {
+      message.warning('仅支持同级项目拖拽排序');
+      setDraggingId(null);
+      return;
+    }
+    const siblings = data.filter((item) => (item.parentId ?? null) === (target.parentId ?? null));
+    const fromIndex = siblings.findIndex((item) => item.id === draggingId);
+    const toIndex = siblings.findIndex((item) => item.id === target.id);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const reorderedSiblings = [...siblings];
+    const [moved] = reorderedSiblings.splice(fromIndex, 1);
+    if (!moved) return;
+    reorderedSiblings.splice(toIndex, 0, moved);
+    const reorderedWithSort = reorderedSiblings.map((item, index) => ({ ...item, sortOrder: (index + 1) * 10 }));
+    const sortMap = new Map(reorderedWithSort.map((item) => [item.id, item.sortOrder]));
+    const nextData = data.map((item) => sortMap.has(item.id) ? { ...item, sortOrder: sortMap.get(item.id)! } : item);
+    setData(nextData);
+    setDraggingId(null);
+    try {
+      await apiClient.put('/ledger/projects/sort', reorderedWithSort.map((item) => ({ id: item.id, sortOrder: item.sortOrder })));
+      message.success('排序已更新');
+    } catch {
+      message.error('排序保存失败');
+      fetchData();
+    }
+  };
+
   const parentTreeOptions = useMemo(() => {
-    const roots = data.filter((d) => !d.parentId);
-    return roots.map((r) => ({
-      value: r.id,
-      title: r.name,
-      children: data.filter((d) => d.parentId === r.id).map((c) => ({
-        value: c.id,
-        title: c.name,
-        disabled: true, // depth 2 items cannot be parent of depth 3+
-      })),
-    }));
-  }, [data]);
+    const byParent = new Map<number | null, ProjectItem[]>();
+    data.forEach((item) => {
+      const key = item.parentId ?? null;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key)!.push(item);
+    });
+    const buildNodes = (parentId: number | null): { value: number; title: string; disabled: boolean; children?: any[] }[] => {
+      return (byParent.get(parentId) || []).map((item) => ({
+        value: item.id,
+        title: item.name,
+        disabled: item.depth >= 3 || item.id === editItem?.id,
+        children: buildNodes(item.id),
+      }));
+    };
+    return buildNodes(null);
+  }, [data, editItem?.id]);
 
   const columns = [
     {
@@ -202,6 +238,13 @@ const ProjectListPage: React.FC = () => {
           loading={loading}
           columns={columns}
           expandable={{ defaultExpandAllRows: true, childrenColumnName: 'children' }}
+          onRow={(record) => ({
+            draggable: true,
+            onDragStart: () => setDraggingId(record.id),
+            onDragOver: (event) => event.preventDefault(),
+            onDrop: () => void handleDrop(record),
+            style: { cursor: 'move' },
+          })}
         />
       </Card>
 
