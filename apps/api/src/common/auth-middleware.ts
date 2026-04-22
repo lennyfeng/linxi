@@ -34,8 +34,8 @@ export async function applyAuthContext(req: IncomingMessage, url: URL, ctx: Requ
     throw new AppError(401, 'invalid_token', { details: null }, ErrorCodes.INVALID_TOKEN);
   }
 
-  const rows = await query<{ id: number; name: string; username: string }>(
-    'SELECT id, name, username FROM users WHERE id = ? AND status = ? LIMIT 1',
+  const rows = await query<{ id: number; displayName: string; username: string }>(
+    'SELECT id, display_name AS displayName, username FROM users WHERE id = ? AND status = ? LIMIT 1',
     [userId, 'active'],
   );
 
@@ -46,15 +46,15 @@ export async function applyAuthContext(req: IncomingMessage, url: URL, ctx: Requ
   const permissions = await loadUserPermissions(userId);
 
   // Check if user has admin role
-  const roleRows = await query<{ roleKey: string }>(
-    'SELECT r.role_key AS roleKey FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?',
+  const roleRows = await query<{ roleName: string }>(
+    'SELECT r.name AS roleName FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?',
     [userId],
   );
-  const isAdmin = roleRows.some((r) => r.roleKey === 'platform-admin');
+  const isAdmin = roleRows.some((r) => r.roleName === 'Super Admin' || r.roleName === 'platform-admin');
 
   ctx.operator = {
     id: userId,
-    name: rows[0].name,
+    name: rows[0].displayName,
     username: rows[0].username,
   };
   ctx.permissions = isAdmin ? ['*'] : permissions;

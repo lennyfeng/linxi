@@ -1,201 +1,232 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Button,
   Card,
   Col,
+  Progress,
   Row,
+  Space,
+  Spin,
   Statistic,
   Table,
   Tabs,
   Typography,
 } from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import apiClient from '@/api/client';
 
-interface MonthlySummary {
-  year: number;
-  month: number;
-  income: number;
-  expense: number;
-  balance: number;
-}
-
-interface Account {
-  id: number;
-  accountName: string;
-  currency: string;
-  openingBalance: number;
-  currentBalance: number;
-}
+const { Text } = Typography;
 
 const fmtAmt = (n: number) =>
   Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+type BreakdownItem = { id?: number; name: string; amount?: number; income: number; expense: number; net?: number; count: number; percentage?: number; parentId?: number | null; currentBalance?: number; accountType?: string };
+
 const ReportsPage: React.FC = () => {
-  const [summary, setSummary] = useState<MonthlySummary[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const navigate = useNavigate();
+  const [year, setYear] = useState(dayjs().year());
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  // Data
+  const [monthlyTrend, setMonthlyTrend] = useState<{ month: number; income: number; expense: number }[]>([]);
+  const [categoryData, setCategoryData] = useState<{ total: number; items: BreakdownItem[] }>({ total: 0, items: [] });
+  const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
+  const [accountData, setAccountData] = useState<BreakdownItem[]>([]);
+  const [projectData, setProjectData] = useState<BreakdownItem[]>([]);
+  const [counterpartyData, setCounterpartyData] = useState<BreakdownItem[]>([]);
+  const [memberData, setMemberData] = useState<BreakdownItem[]>([]);
+
+  const yearRange = { start: `${year}-01-01`, end: `${year}-12-31` };
+
+  const fetchAll = useCallback(() => {
     setLoading(true);
     Promise.all([
-      apiClient.get('/ledger/monthly-summary'),
-      apiClient.get('/ledger/accounts?pageSize=200'),
-    ])
-      .then(([sumRes, accRes]) => {
-        setSummary(sumRes.data?.data ?? []);
-        setAccounts(accRes.data?.data?.list ?? []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      apiClient.get('/ledger/reports/monthly-trend', { params: { year } }),
+      apiClient.get('/ledger/reports/category-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end, type: categoryType } }),
+      apiClient.get('/ledger/reports/account-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end } }),
+      apiClient.get('/ledger/reports/project-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end } }),
+      apiClient.get('/ledger/reports/counterparty-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end } }),
+      apiClient.get('/ledger/reports/member-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end } }),
+    ]).then(([trendR, catR, accR, projR, cpR, memR]) => {
+      setMonthlyTrend(trendR.data?.data ?? trendR.data ?? []);
+      setCategoryData(catR.data?.data ?? catR.data ?? { total: 0, items: [] });
+      setAccountData(accR.data?.data ?? accR.data ?? []);
+      setProjectData(projR.data?.data ?? projR.data ?? []);
+      setCounterpartyData(cpR.data?.data ?? cpR.data ?? []);
+      setMemberData(memR.data?.data ?? memR.data ?? []);
+    }).finally(() => setLoading(false));
+  }, [year, categoryType]);
 
-  const sortedSummary = useMemo(
-    () => [...summary].sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year),
-    [summary],
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Refetch category on type change
+  const fetchCategory = useCallback((type: 'expense' | 'income') => {
+    apiClient.get('/ledger/reports/category-breakdown', { params: { startDate: yearRange.start, endDate: yearRange.end, type } })
+      .then((r) => setCategoryData(r.data?.data ?? r.data ?? { total: 0, items: [] }));
+  }, [year]);
+
+  const yearSelector = (
+    <Space>
+      <Button icon={<LeftOutlined />} size="small" onClick={() => setYear(year - 1)} />
+      <Text strong style={{ fontSize: 16 }}>{year}</Text>
+      <Button icon={<RightOutlined />} size="small" onClick={() => setYear(year + 1)} disabled={year >= dayjs().year()} />
+    </Space>
   );
 
-  const totals = useMemo(() => {
-    let income = 0, expense = 0;
-    for (const s of summary) { income += s.income; expense += s.expense; }
-    return { income, expense, balance: income - expense };
-  }, [summary]);
-
-  const incomeExpenseTab = (
+  // ── Tab: 月报 ──
+  const monthlyTab = (
     <div>
       <Row gutter={24} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card>
-            <Statistic
-              title="总收入"
-              value={totals.income}
-              precision={2}
-              prefix="¥"
-              valueStyle={{ color: '#00B894', fontWeight: 600 }}
-            />
-          </Card>
+          <Card><Statistic title="Total Income" value={monthlyTrend.reduce((s, m) => s + m.income, 0)} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card>
-            <Statistic
-              title="总支出"
-              value={totals.expense}
-              precision={2}
-              prefix="¥"
-              valueStyle={{ color: '#FF6B6B', fontWeight: 600 }}
-            />
-          </Card>
+          <Card><Statistic title="Total Expense" value={monthlyTrend.reduce((s, m) => s + m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#52C41A' }} /></Card>
         </Col>
         <Col span={8}>
-          <Card>
-            <Statistic
-              title="净结余"
-              value={totals.balance}
-              precision={2}
-              prefix="¥"
-              valueStyle={{ color: totals.balance >= 0 ? '#00B894' : '#FF6B6B', fontWeight: 600 }}
-            />
-          </Card>
+          <Card><Statistic title="Net" value={monthlyTrend.reduce((s, m) => s + m.income - m.expense, 0)} precision={2} prefix="¥" valueStyle={{ color: '#1890ff' }} /></Card>
         </Col>
       </Row>
-
       <Table
-        dataSource={sortedSummary}
-        rowKey={(r) => `${r.year}-${r.month}`}
+        dataSource={monthlyTrend}
+        rowKey="month"
         size="middle"
         pagination={false}
         loading={loading}
         columns={[
-          {
-            title: '月份',
-            render: (_, r) => `${r.year}-${String(r.month).padStart(2, '0')}`,
-            width: 100,
-          },
-          {
-            title: '收入',
-            dataIndex: 'income',
-            align: 'right',
-            render: (v: number) => <span style={{ color: '#00B894', fontWeight: 600 }}>+¥{fmtAmt(v)}</span>,
-          },
-          {
-            title: '支出',
-            dataIndex: 'expense',
-            align: 'right',
-            render: (v: number) => <span style={{ color: '#FF6B6B', fontWeight: 600 }}>-¥{fmtAmt(v)}</span>,
-          },
-          {
-            title: '净额',
-            dataIndex: 'balance',
-            align: 'right',
-            render: (v: number) => (
-              <span style={{ color: v >= 0 ? '#00B894' : '#FF6B6B', fontWeight: 600 }}>
-                ¥{fmtAmt(v)}
-              </span>
-            ),
-          },
+          { title: 'Month', dataIndex: 'month', width: 100, render: (m: number) => `${year}-${String(m).padStart(2, '0')}` },
+          { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42', fontWeight: 600 }}>+¥{fmtAmt(v)}</span> },
+          { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A', fontWeight: 600 }}>-¥{fmtAmt(v)}</span> },
+          { title: 'Net', key: 'net', align: 'right' as const, render: (_: unknown, r: any) => { const n = r.income - r.expense; return <span style={{ color: n >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600 }}>¥{fmtAmt(n)}</span>; } },
         ]}
       />
     </div>
   );
 
-  const accountBalancesTab = (
+  // ── Tab: 分类 ──
+  const categoryTab = (
     <div>
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        {accounts.map((a) => (
-          <Col key={a.id} xs={12} sm={8} md={6} style={{ marginBottom: 16 }}>
-            <Card size="small">
-              <div style={{ fontSize: 12, color: '#6B7B8D' }}>{a.accountName}</div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 600,
-                  fontFamily: 'DIN Alternate, monospace',
-                  color: a.currentBalance >= 0 ? '#00B894' : '#FF6B6B',
-                  marginTop: 4,
-                }}
-              >
-                {a.currency === 'USD' ? '$' : '¥'}{fmtAmt(a.currentBalance)}
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-      <Table
-        dataSource={accounts}
-        rowKey="id"
-        size="middle"
-        pagination={false}
-        loading={loading}
-        columns={[
-          { title: '账户', dataIndex: 'accountName' },
-          { title: '币种', dataIndex: 'currency', width: 80 },
-          {
-            title: '期初余额',
-            dataIndex: 'openingBalance',
-            align: 'right',
-            render: (v: number) => `¥${fmtAmt(v)}`,
-          },
-          {
-            title: '当前余额',
-            dataIndex: 'currentBalance',
-            align: 'right',
-            render: (v: number) => (
-              <span style={{ fontWeight: 600, color: v >= 0 ? '#00B894' : '#FF6B6B' }}>
-                ¥{fmtAmt(v)}
-              </span>
-            ),
-          },
-        ]}
-      />
+      <Space style={{ marginBottom: 16 }}>
+        <Button type={categoryType === 'expense' ? 'primary' : 'default'} onClick={() => { setCategoryType('expense'); fetchCategory('expense'); }}>Expense</Button>
+        <Button type={categoryType === 'income' ? 'primary' : 'default'} onClick={() => { setCategoryType('income'); fetchCategory('income'); }}>Income</Button>
+      </Space>
+      <div style={{ marginBottom: 16 }}>
+        <Text type="secondary">Total: ¥{fmtAmt(categoryData.total)} | {categoryData.items.reduce((s, i) => s + (i.count || 0), 0)} entries</Text>
+      </div>
+      {categoryData.items.map((item, idx) => (
+        <div key={item.id || item.name} style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Space>
+              <span style={{ width: 20, textAlign: 'center', fontWeight: 600, color: idx < 3 ? '#FF8C42' : '#999', display: 'inline-block' }}>{idx + 1}</span>
+              <Text>{item.name}</Text>
+            </Space>
+            <Space>
+              <Text type="secondary" style={{ fontSize: 12 }}>{item.percentage ?? 0}%</Text>
+              <Text strong style={{ fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(item.amount ?? 0)}</Text>
+            </Space>
+          </div>
+          <Progress percent={item.percentage ?? 0} showInfo={false} strokeColor={idx === 0 ? '#FF8C42' : idx === 1 ? '#FF6B35' : idx === 2 ? '#FFA502' : '#D9D9D9'} size="small" />
+        </div>
+      ))}
     </div>
+  );
+
+  // ── Tab: 账户 ──
+  const accountTab = (
+    <Table
+      dataSource={accountData}
+      rowKey="id"
+      size="middle"
+      pagination={false}
+      loading={loading}
+      columns={[
+        { title: 'Account', dataIndex: 'name' },
+        { title: 'Type', dataIndex: 'accountType', width: 100 },
+        { title: 'Balance', dataIndex: 'currentBalance', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?account=${r.id}`)}>View</a> },
+      ]}
+    />
+  );
+
+  // ── Tab: 项目 ──
+  const projectTab = (
+    <Table
+      dataSource={projectData}
+      rowKey="name"
+      size="middle"
+      pagination={false}
+      loading={loading}
+      columns={[
+        { title: 'Project', dataIndex: 'name' },
+        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: 'Net', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?project=${encodeURIComponent(r.name)}`)}>View</a> },
+      ]}
+    />
+  );
+
+  // ── Tab: 商家 ──
+  const counterpartyTab = (
+    <Table
+      dataSource={counterpartyData}
+      rowKey="name"
+      size="middle"
+      pagination={false}
+      loading={loading}
+      columns={[
+        { title: 'Counterparty', dataIndex: 'name' },
+        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: 'Net', dataIndex: 'net', align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 600 }}>¥{fmtAmt(v ?? 0)}</span> },
+        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
+        { title: '', key: 'action', width: 100, render: (_: unknown, r: BreakdownItem) => <a onClick={() => navigate(`/ledger/transactions?counterparty=${encodeURIComponent(r.name)}`)}>View</a> },
+      ]}
+    />
+  );
+
+  // ── Tab: 成员 ──
+  const memberTab = (
+    <Table
+      dataSource={memberData}
+      rowKey={(r) => r.name || 'unknown'}
+      size="middle"
+      pagination={false}
+      loading={loading}
+      columns={[
+        { title: 'Member', dataIndex: 'name', render: (_: unknown, r: BreakdownItem) => (r as any).userName || r.name || 'Unknown' },
+        { title: 'Income', dataIndex: 'income', align: 'right' as const, render: (v: number) => <span style={{ color: '#FF8C42' }}>+¥{fmtAmt(v)}</span> },
+        { title: 'Expense', dataIndex: 'expense', align: 'right' as const, render: (v: number) => <span style={{ color: '#52C41A' }}>-¥{fmtAmt(v)}</span> },
+        { title: 'Count', dataIndex: 'count', width: 80, align: 'right' as const },
+      ]}
+    />
   );
 
   return (
     <div style={{ padding: 24 }}>
-      <Card title={<Typography.Title level={4} style={{ margin: 0 }}>财务报表</Typography.Title>}>
-        <Tabs
-          items={[
-            { key: 'income-expense', label: '收支汇总', children: incomeExpenseTab },
-            { key: 'account-balances', label: '账户余额', children: accountBalancesTab },
-          ]}
-        />
+      <Card
+        title={<Space><Typography.Title level={4} style={{ margin: 0 }}>Reports</Typography.Title>{yearSelector}</Space>}
+      >
+        {loading && !monthlyTrend.length ? (
+          <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+        ) : (
+          <Tabs
+            items={[
+              { key: 'monthly', label: 'Monthly', children: monthlyTab },
+              { key: 'category', label: 'Category', children: categoryTab },
+              { key: 'account', label: 'Account', children: accountTab },
+              { key: 'project', label: 'Project', children: projectTab },
+              { key: 'counterparty', label: 'Counterparty', children: counterpartyTab },
+              { key: 'member', label: 'Member', children: memberTab },
+            ]}
+          />
+        )}
       </Card>
     </div>
   );

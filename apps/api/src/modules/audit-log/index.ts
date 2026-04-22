@@ -22,16 +22,16 @@ export const handleAuditLogRoutes: RouteHandler = async (req, res, url, ctx) => 
     const params: unknown[] = [];
 
     const userId = url.searchParams.get('userId');
-    if (userId) { conditions.push('user_id = ?'); params.push(Number(userId)); }
+    if (userId) { conditions.push('operator_id = ?'); params.push(Number(userId)); }
 
     const module = url.searchParams.get('module');
-    if (module) { conditions.push('module = ?'); params.push(module); }
+    if (module) { conditions.push('module_key = ?'); params.push(module); }
 
     const action = url.searchParams.get('action');
     if (action) { conditions.push('action = ?'); params.push(action); }
 
     const entityType = url.searchParams.get('entityType');
-    if (entityType) { conditions.push('entity_type = ?'); params.push(entityType); }
+    if (entityType) { conditions.push('object_type = ?'); params.push(entityType); }
 
     const startDate = url.searchParams.get('startDate');
     if (startDate) { conditions.push('created_at >= ?'); params.push(startDate); }
@@ -45,7 +45,7 @@ export const handleAuditLogRoutes: RouteHandler = async (req, res, url, ctx) => 
     params.push(pageSize, offset);
 
     const [rows] = await pool.query<RowDataPacket[]>({
-      sql: `SELECT id, user_id, action, module, entity_type, entity_id, before_data, after_data, ip_address, created_at
+      sql: `SELECT id, log_type, module_key, object_type, object_id, action, operator_id, operator_name, before_snapshot, after_snapshot, result_status, error_message, request_id, created_at
             FROM audit_logs WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       values: params,
     });

@@ -2,7 +2,8 @@ import { lingxingRequest } from './client.js';
 import { query } from '../../database/index.js';
 
 interface LingxingCurrencyRate {
-  currency: string;
+  code: string;
+  name: string;
   rate_org: number;
   my_rate: number;
 }
@@ -37,7 +38,7 @@ export async function syncExchangeRates(
   let updated = 0;
 
   for (const item of rates) {
-    if (!item.currency || item.currency === 'CNY') continue;
+    if (!item.code || item.code === 'CNY') continue;
 
     const rate = item.my_rate > 0 ? item.my_rate : item.rate_org;
     if (!rate || rate <= 0) continue;
@@ -46,7 +47,7 @@ export async function syncExchangeRates(
       `SELECT id FROM exchange_rates
        WHERE source_currency = ? AND target_currency = 'CNY' AND rate_date = ?
        LIMIT 1`,
-      [item.currency, rateDate],
+      [item.code, rateDate],
     );
 
     if (existing[0]) {
@@ -59,7 +60,7 @@ export async function syncExchangeRates(
       await query(
         `INSERT INTO exchange_rates (source_currency, target_currency, rate, rate_date, source)
          VALUES (?, 'CNY', ?, ?, 'lingxing')`,
-        [item.currency, rate, rateDate],
+        [item.code, rate, rateDate],
       );
       created++;
     }

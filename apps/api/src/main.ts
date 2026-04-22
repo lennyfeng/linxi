@@ -12,6 +12,7 @@ import { handleNotificationsRoutes } from './modules/notifications/index.js';
 import { handleApprovalsRoutes } from './modules/approvals/index.js';
 import { handleSearchRoutes } from './modules/search/index.js';
 import { handleAuditLogRoutes } from './modules/audit-log/index.js';
+import { handleSyncJobsRoutes } from './modules/sync-jobs/index.js';
 import { getAppConfig } from './config/app.config.js';
 import { getDatabaseHealth } from './database/index.js';
 import { getErrorResponse, getRouteNotFound } from './common/errors.js';
@@ -62,10 +63,11 @@ const server = createServer(async (req, res) => {
       (await handleNotificationsRoutes(req, res, url, ctx)) ||
       (await handleApprovalsRoutes(req, res, url, ctx)) ||
       (await handleSearchRoutes(req, res, url, ctx)) ||
-      (await handleAuditLogRoutes(req, res, url, ctx));
+      (await handleAuditLogRoutes(req, res, url, ctx)) ||
+      (await handleSyncJobsRoutes(req, res, url, ctx));
 
     if (handled) {
-      await flushAuditLogs(ctx);
+      try { await flushAuditLogs(ctx); } catch (e) { console.error('[audit-flush]', e); }
       return;
     }
 
@@ -76,11 +78,15 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify(getRouteNotFound(url.pathname, ctx.requestId)));
   } catch (error) {
     const response = getErrorResponse(error, ctx.requestId);
-    res.writeHead(response.statusCode, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'X-Request-Id': ctx.requestId,
-    });
-    res.end(JSON.stringify(response.body));
+    if (!res.headersSent) {
+      res.writeHead(response.statusCode, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Request-Id': ctx.requestId,
+      });
+      res.end(JSON.stringify(response.body));
+    } else {
+      console.error('[unhandled-after-send]', error);
+    }
   }
 });
 

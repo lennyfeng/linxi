@@ -70,9 +70,9 @@ const ProjectListPage: React.FC = () => {
     { title: '阶段', dataIndex: 'projectStatus', key: 'projectStatus', width: 110,
       render: (v: string) => <Tag color={stageColors[v] || 'default'}>{v}</Tag> },
     { title: '预估成本', dataIndex: 'estimatedCost', key: 'estimatedCost', width: 100, align: 'right',
-      render: (v: number | null) => v != null ? `¥${v.toFixed(2)}` : '-' },
+      render: (v: number | string | null) => v != null ? `¥${Number(v).toFixed(2)}` : '-' },
     { title: '目标售价', dataIndex: 'targetPrice', key: 'targetPrice', width: 110, align: 'right',
-      render: (v: number | null) => v != null ? `$${v.toFixed(2)}` : '-' },
+      render: (v: number | string | null) => v != null ? `$${Number(v).toFixed(2)}` : '-' },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 110,
       render: (v: string) => v?.split('T')[0] ?? '-' },
   ];

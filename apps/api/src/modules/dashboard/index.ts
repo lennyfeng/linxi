@@ -17,12 +17,12 @@ export const handleDashboardRoutes: RouteHandler = async (req, res, url, ctx) =>
 
     // Financial snapshot
     const [txStats] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS totalAmount FROM ledger_transactions WHERE deleted_at IS NULL`,
+      `SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS totalAmount FROM transactions WHERE deleted_at IS NULL`,
     );
 
     // Active projects
     const [projStats] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total, SUM(CASE WHEN project_status NOT IN ('已终止','已归档') THEN 1 ELSE 0 END) AS active FROM pd_projects`,
+      `SELECT COUNT(*) AS total, SUM(CASE WHEN project_status NOT IN ('已终止','已归档') THEN 1 ELSE 0 END) AS active FROM product_dev_projects`,
     );
 
     // Reconciliation summary
@@ -43,7 +43,7 @@ export const handleDashboardRoutes: RouteHandler = async (req, res, url, ctx) =>
 
     // Recent activity (last 10 audit logs)
     const [recentActivity] = await pool.query<RowDataPacket[]>(
-      `SELECT id, action, module, entity_type, entity_id, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 10`,
+      `SELECT id, action, module_key, object_type, object_id, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 10`,
     );
 
     // System status (sync jobs)

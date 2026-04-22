@@ -12,19 +12,21 @@ interface LemonCloudCredentials {
  * Get Lemon Cloud credentials from settings table.
  */
 async function getCredentials(): Promise<LemonCloudCredentials> {
-  const rows = await query<{ setting_value: string }>(
-    "SELECT setting_value FROM settings WHERE setting_key = 'lemoncloud_credentials' LIMIT 1",
-  );
-  if (rows[0]) {
-    try {
-      const val = JSON.parse(rows[0].setting_value);
-      return {
-        appKey: val.appKey || '',
-        appSecret: val.appSecret || '',
-        accessToken: val.accessToken || '',
-      };
-    } catch { /* fallback */ }
-  }
+  try {
+    const rows = await query<{ val: string }>(
+      "SELECT `value` AS val FROM settings WHERE `key` = 'lemoncloud_credentials' LIMIT 1",
+    );
+    if (rows[0]) {
+      const val = JSON.parse(rows[0].val);
+      if (val.appKey || val.accessToken) {
+        return {
+          appKey: val.appKey || '',
+          appSecret: val.appSecret || '',
+          accessToken: val.accessToken || '',
+        };
+      }
+    }
+  } catch { /* fallback to env */ }
   return {
     appKey: process.env.LEMONCLOUD_APP_KEY || '',
     appSecret: process.env.LEMONCLOUD_APP_SECRET || '',

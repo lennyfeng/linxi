@@ -70,8 +70,11 @@ function isApiPath(pathname) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');
+  const accept = req.headers.accept || '';
+  const isNavigation = accept.includes('text/html');
 
-  if (isApiPath(url.pathname)) {
+  // Proxy to API only for XHR/fetch calls (not browser navigation)
+  if (isApiPath(url.pathname) && !isNavigation) {
     proxyApi(req, res);
     return;
   }

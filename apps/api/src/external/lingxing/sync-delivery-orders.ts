@@ -2,17 +2,26 @@ import { lingxingRequest } from './client.js';
 import { query } from '../../database/index.js';
 
 interface LxDeliveryOrder {
-  delivery_id: string;
-  delivery_number: string;
-  shipment_type: string;
-  status: string;
-  destination: string;
-  ship_date: string;
+  id: number;
+  shipment_sn: string;
+  status: number;
+  destination_fulfillment_center_id: string;
+  shipment_time: string;
+  create_time: string;
+  logistics_channel_name: string;
+  wname: string;
+  method_name: string;
+}
+
+interface LxDeliveryResponse {
+  list: LxDeliveryOrder[];
+  total: number;
 }
 
 /**
- * Sync delivery orders (发货单/入库计划) from Lingxing.
+ * Sync delivery orders (发货单) from Lingxing.
  * POST /erp/sc/routing/storage/shipment/getInboundShipmentList
+ * Response: data.list[] + data.total
  */
 export async function syncDeliveryOrders(
   startDate?: string,
@@ -28,21 +37,30 @@ export async function syncDeliveryOrders(
     const body: Record<string, unknown> = { offset, length: limit };
     if (startDate) body.start_date = startDate;
     if (endDate) body.end_date = endDate;
+    if (startDate || endDate) body.time_type = 3; // 创建时间
 
-    const result = await lingxingRequest<LxDeliveryOrder[]>(
+    const result = await lingxingRequest<LxDeliveryResponse>(
       '/erp/sc/routing/storage/shipment/getInboundShipmentList',
       body,
     );
 
-    if (!Array.isArray(result) || result.length === 0) break;
+    const list = result?.list;
+    if (!Array.isArray(list) || list.length === 0) break;
 
-    for (const d of result) {
+    for (const d of list) {
       totalFetched++;
+
+      const lxDeliveryId = String(d.id);
 
       const existing = await query<{ id: number }>(
         'SELECT id FROM lx_delivery_orders WHERE lx_delivery_id = ? LIMIT 1',
-        [d.delivery_id],
+        [lxDeliveryId],
       );
+
+      const statusStr = String(d.status);
+      const destination = d.destination_fulfillment_center_id || '';
+      const shipmentType = d.method_name || d.logistics_channel_name || '';
+      const shipDate = d.shipment_time || d.create_time || null;
 
       if (existing[0]) {
         await query(
@@ -50,8 +68,8 @@ export async function syncDeliveryOrders(
             delivery_number = ?, shipment_type = ?, status = ?,
             destination = ?, ship_date = ?, raw_data = ?, synced_at = NOW()
           WHERE id = ?`,
-          [d.delivery_number, d.shipment_type, d.status,
-           d.destination, d.ship_date || null, JSON.stringify(d), existing[0].id],
+          [d.shipment_sn, shipmentType, statusStr,
+           destination, shipDate, JSON.stringify(d), existing[0].id],
         );
         updated++;
       } else {
@@ -59,14 +77,14 @@ export async function syncDeliveryOrders(
           `INSERT INTO lx_delivery_orders
            (lx_delivery_id, delivery_number, shipment_type, status, destination, ship_date, raw_data, synced_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [d.delivery_id, d.delivery_number, d.shipment_type, d.status,
-           d.destination, d.ship_date || null, JSON.stringify(d)],
+          [lxDeliveryId, d.shipment_sn, shipmentType, statusStr,
+           destination, shipDate, JSON.stringify(d)],
         );
         created++;
       }
     }
 
-    if (result.length < limit) break;
+    if (list.length < limit) break;
     offset += limit;
   }
 

@@ -74,6 +74,7 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
           exchangeRate: tx.exchangeRate,
           categoryId: tx.categoryId,
           counterpartyName: tx.counterpartyName,
+          projectName: tx.projectName,
           summary: tx.summary,
           remark: tx.remark,
           reimbursementRequired: !!tx.reimbursementRequired,
@@ -115,6 +116,7 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
         exchangeRate: values.exchangeRate || null,
         categoryId: isTransfer ? null : values.categoryId,
         counterpartyName: values.counterpartyName || null,
+        projectName: values.projectName || null,
         summary: values.summary || null,
         remark: values.remark || null,
         reimbursementRequired: values.reimbursementRequired ? 1 : 0,
@@ -268,6 +270,10 @@ const TransactionFormDrawer: React.FC<TransactionFormDrawerProps> = ({
             onSearch={handleCounterpartySearch}
             placeholder="输入搜索..."
           />
+        </Form.Item>
+
+        <Form.Item name="projectName" label="项目">
+          <Input placeholder="项目名称（可选）" />
         </Form.Item>
 
         <Form.Item name="summary" label="摘要" rules={[{ required: true, min: 2, max: 200 }]}>

@@ -40,11 +40,14 @@ const menuConfig: MenuItem[] = [
     icon: <Wallet size={18} />,
     permission: 'ledger',
     children: [
+      { path: '/ledger/overview', name: '总览', icon: <></> },
       { path: '/ledger/transactions', name: '流水记录', icon: <></> },
       { path: '/ledger/accounts', name: '账户管理', icon: <></> },
       { path: '/ledger/categories', name: '分类管理', icon: <></> },
       { path: '/ledger/import', name: '导入', icon: <></> },
       { path: '/ledger/reports', name: '报表', icon: <></> },
+      { path: '/ledger/projects', name: '项目', icon: <></> },
+      { path: '/ledger/counterparties', name: '商家', icon: <></> },
     ],
   },
   {
@@ -60,6 +63,7 @@ const menuConfig: MenuItem[] = [
       { path: '/reconciliation/invoices', name: '发票', icon: <></> },
       { path: '/reconciliation/workspace', name: '匹配工作台', icon: <></> },
       { path: '/reconciliation/sync', name: '同步监控', icon: <></> },
+      { path: '/reconciliation/suppliers', name: '供应商', icon: <></> },
     ],
   },
   {

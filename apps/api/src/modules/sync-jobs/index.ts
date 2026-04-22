@@ -1,71 +1,48 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-import { getPool } from '../../database/pool.js';
-import type { RowDataPacket } from 'mysql2';
+import { sendJson } from '../../common/send.js';
+import type { RouteHandler } from '../../common/types.js';
+import { query } from '../../database/index.js';
 
-interface SyncJobRow extends RowDataPacket {
-  id: number;
-  name: string;
-  job_type: string;
-  status: string;
-  last_run_at: string | null;
-  next_run_at: string | null;
-  retry_count: number;
-  interval_seconds: number | null;
-}
+export const syncJobsModule = {
+  name: 'sync-jobs',
+  description: 'Sync job scheduling and logs',
+  routes: ['/sync-jobs', '/sync-jobs/:id/trigger', '/sync-jobs/:id/logs'],
+};
 
-interface SyncJobLogRow extends RowDataPacket {
-  id: number;
-  status: string;
-  started_at: string;
-  finished_at: string | null;
-  duration_ms: number | null;
-  records_processed: number | null;
-  error_message: string | null;
-}
+export const handleSyncJobsRoutes: RouteHandler = async (req, res, url, ctx) => {
+  const responseOptions = { requestId: ctx.requestId };
 
-export async function handleSyncJobsRoute(
-  req: IncomingMessage,
-  res: ServerResponse,
-  pathname: string,
-) {
-  const pool = getPool();
-
-  // GET /api/sync-jobs
-  if (req.method === 'GET' && pathname === '/api/sync-jobs') {
-    const [rows] = await pool.query<SyncJobRow[]>(
+  // GET /sync-jobs
+  if (req.method === 'GET' && url.pathname === '/sync-jobs') {
+    const rows = await query(
       'SELECT id, name, job_type, status, last_run_at, next_run_at, retry_count, interval_seconds FROM sync_jobs ORDER BY id',
     );
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ code: 0, message: 'ok', data: rows, requestId: '' }));
-    return;
+    sendJson(res, rows, responseOptions);
+    return true;
   }
 
-  // POST /api/sync-jobs/:id/trigger
-  const triggerMatch = pathname.match(/^\/api\/sync-jobs\/(\d+)\/trigger$/);
+  // POST /sync-jobs/:id/trigger
+  const triggerMatch = url.pathname.match(/^\/sync-jobs\/(\d+)\/trigger$/);
   if (req.method === 'POST' && triggerMatch) {
     const jobId = Number(triggerMatch[1]);
-    await pool.execute(
+    await query(
       `UPDATE sync_jobs SET next_run_at = NOW(), status = 'idle' WHERE id = ?`,
       [jobId],
     );
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ code: 0, message: 'Job triggered', data: null, requestId: '' }));
-    return;
+    sendJson(res, { message: 'Job triggered' }, responseOptions);
+    return true;
   }
 
-  // GET /api/sync-jobs/:id/logs
-  const logsMatch = pathname.match(/^\/api\/sync-jobs\/(\d+)\/logs$/);
+  // GET /sync-jobs/:id/logs
+  const logsMatch = url.pathname.match(/^\/sync-jobs\/(\d+)\/logs$/);
   if (req.method === 'GET' && logsMatch) {
     const jobId = Number(logsMatch[1]);
-    const [rows] = await pool.query<SyncJobLogRow[]>(
+    const rows = await query(
       'SELECT id, status, started_at, finished_at, duration_ms, records_processed, error_message FROM sync_job_logs WHERE job_id = ? ORDER BY started_at DESC LIMIT 50',
       [jobId],
     );
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ code: 0, message: 'ok', data: rows, requestId: '' }));
-    return;
+    sendJson(res, rows, responseOptions);
+    return true;
   }
 
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ code: 404, message: 'Not found' }));
-}
+  return false;
+};

@@ -6,6 +6,15 @@ import { syncExchangeRates, syncExchangeRatesBulk } from '../../external/lingxin
 import { syncLemonCloudJournals } from '../../external/lemoncloud/sync-journals.js';
 import { createAirwallexBatch, stageAirwallexRows, dedupCheck, confirmImport } from './import-airwallex.js';
 import {
+  getLedgerOverview,
+  getCategoryBreakdown,
+  getAccountBreakdown,
+  getProjectBreakdown,
+  getCounterpartyBreakdown,
+  getMonthlyTrend,
+  getMemberBreakdown,
+} from './service/ledger-reports.service.js';
+import {
   createAccount,
   createCategory,
   createImportBatch,
@@ -37,6 +46,7 @@ import {
   monthlySummary,
   counterpartySuggest,
   getExchangeRateSvc,
+  globalStats,
 } from './service/ledger.service.js';
 
 export const ledgerModule = {
@@ -50,11 +60,65 @@ export const ledgerModule = {
     '/ledger/external-transactions',
     '/ledger/matches',
     '/ledger/transactions/:id/attachments',
+    '/ledger/overview',
+    '/ledger/reports',
   ],
 };
 
 export const handleLedgerRoutes: RouteHandler = async (req, res, url, ctx) => {
   const responseOptions = { requestId: ctx.requestId };
+
+  if (req.method === 'GET' && url.pathname === '/ledger/stats') {
+    sendJson(res, await globalStats(), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/overview') {
+    sendJson(res, await getLedgerOverview(), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/category-breakdown') {
+    const startDate = url.searchParams.get('startDate') || '2000-01-01';
+    const endDate = url.searchParams.get('endDate') || '2099-12-31';
+    const type = url.searchParams.get('type') || 'expense';
+    sendJson(res, await getCategoryBreakdown(startDate, endDate, type), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/account-breakdown') {
+    const startDate = url.searchParams.get('startDate') || '2000-01-01';
+    const endDate = url.searchParams.get('endDate') || '2099-12-31';
+    sendJson(res, await getAccountBreakdown(startDate, endDate), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/project-breakdown') {
+    const startDate = url.searchParams.get('startDate') || '2000-01-01';
+    const endDate = url.searchParams.get('endDate') || '2099-12-31';
+    sendJson(res, await getProjectBreakdown(startDate, endDate), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/counterparty-breakdown') {
+    const startDate = url.searchParams.get('startDate') || '2000-01-01';
+    const endDate = url.searchParams.get('endDate') || '2099-12-31';
+    sendJson(res, await getCounterpartyBreakdown(startDate, endDate), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/monthly-trend') {
+    const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+    sendJson(res, await getMonthlyTrend(year), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/ledger/reports/member-breakdown') {
+    const startDate = url.searchParams.get('startDate') || '2000-01-01';
+    const endDate = url.searchParams.get('endDate') || '2099-12-31';
+    sendJson(res, await getMemberBreakdown(startDate, endDate), responseOptions);
+    return true;
+  }
 
   if (req.method === 'GET' && url.pathname === '/ledger/accounts') {
     sendJson(res, await getAccounts(Object.fromEntries(url.searchParams.entries())), responseOptions);
@@ -107,6 +171,9 @@ export const handleLedgerRoutes: RouteHandler = async (req, res, url, ctx) => {
   // --- Batch, summary, counterparty, exchange-rate ---
   if (req.method === 'POST' && url.pathname === '/ledger/transactions/batch') {
     const body = await readJsonBody(req);
+    if (Array.isArray(body.transactions)) {
+      body.transactions.forEach((t: Record<string, unknown>) => { t.createdBy = t.createdBy || ctx.operator?.id || null; });
+    }
     sendJson(res, await batchCreateTransactionsSvc(body), { ...responseOptions, statusCode: 201 });
     return true;
   }
@@ -191,6 +258,7 @@ export const handleLedgerRoutes: RouteHandler = async (req, res, url, ctx) => {
 
   if (req.method === 'POST' && url.pathname === '/ledger/transactions') {
     const body = await readJsonBody(req);
+    body.createdBy = body.createdBy || ctx.operator?.id || null;
     sendJson(res, await createTransaction(body), { ...responseOptions, statusCode: 201 });
     return true;
   }

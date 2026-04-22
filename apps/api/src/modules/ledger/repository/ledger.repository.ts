@@ -32,6 +32,8 @@ export interface LedgerFilters {
   importBatchId?: number | null;
   transactionId?: number | null;
   externalTransactionId?: number | null;
+  projectName?: string;
+  counterpartyName?: string;
 }
 
 async function queryPagedList<T = DbRow>(selectClause: string, fromClause: string, whereClauses: string[], params: unknown[], orderByClause: string, page: number, pageSize: number): Promise<PagedResult<T>> {
@@ -227,6 +229,16 @@ export async function listTransactions(filters: LedgerFilters, page: number, pag
     params.push(filters.endDate);
   }
 
+  if (filters.projectName) {
+    whereClauses.push('project_name = ?');
+    params.push(filters.projectName);
+  }
+
+  if (filters.counterpartyName) {
+    whereClauses.push('counterparty = ?');
+    params.push(filters.counterpartyName);
+  }
+
   if (filters.keyword) {
     whereClauses.push('(transaction_no LIKE ? OR counterparty LIKE ? OR project_name LIKE ? OR description LIKE ? OR payment_account LIKE ?)');
     params.push(
@@ -254,6 +266,7 @@ export async function listTransactions(filters: LedgerFilters, page: number, pag
       counterparty AS counterpartyName,
       project_name AS projectName,
       description AS summary,
+      remark,
       reimbursement_required AS reimbursementRequired,
       reimbursement_status AS reimbursementStatus,
       invoice_required AS invoiceRequired,
@@ -261,7 +274,7 @@ export async function listTransactions(filters: LedgerFilters, page: number, pag
     'FROM transactions',
     whereClauses,
     params,
-    'ORDER BY id DESC',
+    'ORDER BY date DESC, id DESC',
     page,
     pageSize,
   );
@@ -489,6 +502,20 @@ export async function getDistinctCounterparties(keyword: string, limit = 10) {
      LIMIT ?`,
     [`%${keyword}%`, limit],
   );
+}
+
+// ── Global stats (all-time) ──
+export async function getGlobalStats() {
+  const rows = await query(
+    `SELECT
+      COALESCE(SUM(CASE WHEN type = 'income' AND status = 'submitted' THEN amount ELSE 0 END), 0) AS income,
+      COALESCE(SUM(CASE WHEN type = 'expense' AND status = 'submitted' THEN amount ELSE 0 END), 0) AS expense,
+      COALESCE(SUM(CASE WHEN type = 'income' AND status = 'submitted' THEN amount ELSE 0 END), 0) -
+      COALESCE(SUM(CASE WHEN type = 'expense' AND status = 'submitted' THEN amount ELSE 0 END), 0) AS balance,
+      COUNT(CASE WHEN status = 'submitted' THEN 1 END) AS totalCount
+    FROM transactions`,
+  );
+  return rows[0] || { income: 0, expense: 0, balance: 0, totalCount: 0 };
 }
 
 // ── Batch create transactions ──

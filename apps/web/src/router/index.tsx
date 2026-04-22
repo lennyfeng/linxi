@@ -21,15 +21,19 @@ const RolePage = lazy(() => import('@/pages/users/RolePage'));
 const AuditLogPage = lazy(() => import('@/pages/users/AuditLogPage'));
 
 // Ledger
+const LedgerOverviewPage = lazy(() => import('@/pages/ledger/OverviewPage'));
 const TransactionListPage = lazy(() => import('@/pages/ledger/TransactionListPage'));
 const BatchEntryPage = lazy(() => import('@/pages/ledger/BatchEntryPage'));
 const AccountListPage = lazy(() => import('@/pages/ledger/AccountListPage'));
 const CategoryPage = lazy(() => import('@/pages/ledger/CategoryPage'));
 const ImportPage = lazy(() => import('@/pages/ledger/ImportPage'));
 const ReportsPage = lazy(() => import('@/pages/ledger/ReportsPage'));
+const LedgerProjectListPage = lazy(() => import('@/pages/ledger/ProjectListPage'));
+const CounterpartyListPage = lazy(() => import('@/pages/ledger/CounterpartyListPage'));
 
 // Reconciliation
 const ReconOverviewPage = lazy(() => import('@/pages/reconciliation/OverviewPage'));
+const SupplierListPage = lazy(() => import('@/pages/reconciliation/SupplierListPage'));
 const PurchaseOrderListPage = lazy(() => import('@/pages/reconciliation/PurchaseOrderListPage'));
 const PaymentRequestListPage = lazy(() => import('@/pages/reconciliation/PaymentRequestListPage'));
 const DeliveryOrderListPage = lazy(() => import('@/pages/reconciliation/DeliveryOrderListPage'));
@@ -81,13 +85,16 @@ const AppRouter: React.FC = () => {
           <Route path="/users/audit-log" element={<AuditLogPage />} />
 
           {/* Ledger */}
-          <Route path="/ledger" element={<Navigate to="/ledger/transactions" replace />} />
+          <Route path="/ledger" element={<Navigate to="/ledger/overview" replace />} />
+          <Route path="/ledger/overview" element={<LedgerOverviewPage />} />
           <Route path="/ledger/transactions" element={<TransactionListPage />} />
           <Route path="/ledger/transactions/batch" element={<BatchEntryPage />} />
           <Route path="/ledger/accounts" element={<AccountListPage />} />
           <Route path="/ledger/categories" element={<CategoryPage />} />
           <Route path="/ledger/import" element={<ImportPage />} />
           <Route path="/ledger/reports" element={<ReportsPage />} />
+          <Route path="/ledger/projects" element={<LedgerProjectListPage />} />
+          <Route path="/ledger/counterparties" element={<CounterpartyListPage />} />
 
           {/* Reconciliation */}
           <Route path="/reconciliation" element={<Navigate to="/reconciliation/overview" replace />} />
@@ -98,6 +105,7 @@ const AppRouter: React.FC = () => {
           <Route path="/reconciliation/invoices" element={<InvoiceListPage />} />
           <Route path="/reconciliation/workspace" element={<WorkspacePage />} />
           <Route path="/reconciliation/sync" element={<SyncMonitorPage />} />
+          <Route path="/reconciliation/suppliers" element={<SupplierListPage />} />
 
           {/* Product Dev */}
           <Route path="/product-dev" element={<Navigate to="/product-dev/projects" replace />} />

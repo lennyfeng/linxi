@@ -42,6 +42,7 @@ interface Transaction {
   counterpartyName: string | null;
   projectName: string | null;
   summary: string | null;
+  remark: string | null;
   reimbursementRequired: number;
   reimbursementStatus: string | null;
   invoiceRequired: number;
@@ -84,7 +85,16 @@ const TransactionListPage: React.FC = () => {
   const [filterAccount, setFilterAccount] = useState<number | undefined>(
     searchParams.get('account') ? Number(searchParams.get('account')) : undefined,
   );
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<number | undefined>(
+    searchParams.get('category') ? Number(searchParams.get('category')) : undefined,
+  );
+  const [filterProject, setFilterProject] = useState<string | undefined>(searchParams.get('project') || undefined);
+  const [filterCounterparty, setFilterCounterparty] = useState<string | undefined>(searchParams.get('counterparty') || undefined);
+  const hasUrlFilters = !!(searchParams.get('account') || searchParams.get('category') || searchParams.get('project') || searchParams.get('counterparty'));
+  const [showFilters, setShowFilters] = useState(hasUrlFilters);
+
+  // Global stats
+  const [globalStatsData, setGlobalStatsData] = useState<{ income: number; expense: number; balance: number; totalCount: number } | null>(null);
 
   // Drawer state
   const [formDrawerOpen, setFormDrawerOpen] = useState(false);
@@ -92,15 +102,22 @@ const TransactionListPage: React.FC = () => {
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [detailTxId, setDetailTxId] = useState<number | null>(null);
 
-  // Load reference data
-  useEffect(() => {
-    apiClient.get('/ledger/accounts?pageSize=200').then((r) => {
-      setAccounts(r.data?.data?.list ?? []);
-    });
-    apiClient.get('/ledger/categories?pageSize=200').then((r) => {
-      setCategories(r.data?.data?.list ?? []);
+  // Load reference data + global stats
+  const fetchGlobalStats = useCallback(() => {
+    apiClient.get('/ledger/stats').then((r) => {
+      setGlobalStatsData(r.data?.data ?? r.data ?? null);
     });
   }, []);
+
+  useEffect(() => {
+    apiClient.get('/ledger/accounts?pageSize=100').then((r) => {
+      setAccounts(r.data?.data?.list ?? []);
+    });
+    apiClient.get('/ledger/categories?pageSize=100').then((r) => {
+      setCategories(r.data?.data?.list ?? []);
+    });
+    fetchGlobalStats();
+  }, [fetchGlobalStats]);
 
   // Build filters
   const filters = useMemo(() => {
@@ -110,8 +127,11 @@ const TransactionListPage: React.FC = () => {
     if (keyword) params.keyword = keyword;
     if (filterType) params.transactionType = filterType;
     if (filterAccount) params.accountId = filterAccount;
+    if (filterCategory) params.categoryId = filterCategory;
+    if (filterProject) params.projectName = filterProject;
+    if (filterCounterparty) params.counterpartyName = filterCounterparty;
     return params;
-  }, [activeYear, activeMonth, page, keyword, filterType, filterAccount]);
+  }, [activeYear, activeMonth, page, keyword, filterType, filterAccount, filterCategory, filterProject, filterCounterparty]);
 
   const fetchTransactions = useCallback(() => {
     setLoading(true);
@@ -143,15 +163,22 @@ const TransactionListPage: React.FC = () => {
     return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a));
   }, [transactions]);
 
-  // Stats
+  // Stats (prefer global stats, fallback to page stats)
   const stats = useMemo(() => {
+    if (globalStatsData) {
+      return {
+        income: Number(globalStatsData.income),
+        expense: Number(globalStatsData.expense),
+        balance: Number(globalStatsData.balance),
+      };
+    }
     let income = 0, expense = 0;
     for (const tx of transactions) {
       if (tx.transactionType === 'income') income += tx.amount;
       if (tx.transactionType === 'expense') expense += tx.amount;
     }
     return { income, expense, balance: income - expense };
-  }, [transactions]);
+  }, [transactions, globalStatsData]);
 
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.accountName])), [accounts]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.categoryName])), [categories]);
@@ -291,6 +318,30 @@ const TransactionListPage: React.FC = () => {
         optionFilterProp="label"
         options={accounts.map((a) => ({ value: a.id, label: a.accountName }))}
       />
+      <Select
+        placeholder="分类"
+        allowClear
+        value={filterCategory}
+        onChange={(v) => { setFilterCategory(v); setPage(1); }}
+        style={{ width: 160 }}
+        showSearch
+        optionFilterProp="label"
+        options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
+      />
+      <Input
+        placeholder="项目"
+        allowClear
+        value={filterProject}
+        onChange={(e) => { setFilterProject(e.target.value || undefined); setPage(1); }}
+        style={{ width: 140 }}
+      />
+      <Input
+        placeholder="对方"
+        allowClear
+        value={filterCounterparty}
+        onChange={(e) => { setFilterCounterparty(e.target.value || undefined); setPage(1); }}
+        style={{ width: 140 }}
+      />
     </div>
   ) : null;
 
@@ -344,6 +395,20 @@ const TransactionListPage: React.FC = () => {
       },
     },
     {
+      title: '项目',
+      dataIndex: 'projectName',
+      width: 100,
+      ellipsis: true,
+      render: (v: string | null) => v || '-',
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      width: 100,
+      ellipsis: true,
+      render: (v: string | null) => v ? <Tooltip title={v}>{v}</Tooltip> : '-',
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       width: 80,
@@ -391,7 +456,7 @@ const TransactionListPage: React.FC = () => {
             rowKey="id"
             size="small"
             pagination={false}
-            showHeader={false}
+            showHeader={true}
             onRow={(record) => ({
               onClick: () => { setDetailTxId(record.id); setDetailDrawerOpen(true); },
               style: { cursor: 'pointer' },
@@ -435,7 +500,7 @@ const TransactionListPage: React.FC = () => {
         open={formDrawerOpen}
         editId={formEditId}
         onClose={() => setFormDrawerOpen(false)}
-        onSaved={fetchTransactions}
+        onSaved={() => { fetchTransactions(); fetchGlobalStats(); }}
         accounts={accounts}
         categories={categories}
       />

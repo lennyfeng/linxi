@@ -2,11 +2,14 @@ import { lingxingRequest } from './client.js';
 import { query } from '../../database/index.js';
 
 interface LxSupplier {
-  supplier_id: string;
-  name: string;
-  contact: string;
-  phone: string;
-  address: string;
+  supplier_id: number;
+  supplier_name: string;
+  supplier_code: string;
+  contact_person: string;
+  contact_number: string;
+  email: string;
+  address_full: string;
+  is_delete: number;
 }
 
 /**
@@ -33,7 +36,7 @@ export async function syncSuppliers(): Promise<{ synced: number; created: number
 
       const existing = await query<{ id: number }>(
         'SELECT id FROM lx_suppliers WHERE lx_supplier_id = ? LIMIT 1',
-        [s.supplier_id],
+        [String(s.supplier_id)],
       );
 
       if (existing[0]) {
@@ -41,7 +44,7 @@ export async function syncSuppliers(): Promise<{ synced: number; created: number
           `UPDATE lx_suppliers SET
             name = ?, contact = ?, phone = ?, address = ?, raw_data = ?, synced_at = NOW()
           WHERE id = ?`,
-          [s.name, s.contact || null, s.phone || null, s.address || null, JSON.stringify(s), existing[0].id],
+          [s.supplier_name, s.contact_person || null, s.contact_number || null, s.address_full || null, JSON.stringify(s), existing[0].id],
         );
         updated++;
       } else {
@@ -49,7 +52,7 @@ export async function syncSuppliers(): Promise<{ synced: number; created: number
           `INSERT INTO lx_suppliers
            (lx_supplier_id, name, contact, phone, address, raw_data, synced_at)
            VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-          [s.supplier_id, s.name, s.contact || null, s.phone || null, s.address || null, JSON.stringify(s)],
+          [String(s.supplier_id), s.supplier_name, s.contact_person || null, s.contact_number || null, s.address_full || null, JSON.stringify(s)],
         );
         created++;
       }

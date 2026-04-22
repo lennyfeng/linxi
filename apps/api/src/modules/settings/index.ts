@@ -10,7 +10,6 @@ interface SettingRow {
   settingKey: string;
   settingValue: string;
   description: string | null;
-  isSecret: number;
 }
 
 function maskSecretValue(value: string): string {
@@ -41,15 +40,18 @@ export const handleSettingsRoutes: RouteHandler = async (req, res, url, ctx) => 
   // GET /settings - list all settings
   if (req.method === 'GET' && url.pathname === '/settings') {
     const rows = await query<SettingRow>(
-      `SELECT id, setting_key AS settingKey, setting_value AS settingValue, description, is_secret AS isSecret FROM settings ORDER BY id`,
+      'SELECT id, `key` AS settingKey, `value` AS settingValue, description FROM settings ORDER BY id',
     );
-    const data = rows.map((r) => ({
-      id: r.id,
-      key: r.settingKey,
-      value: r.isSecret ? maskSecretValue(r.settingValue) : r.settingValue,
-      description: r.description,
-      isSecret: Boolean(r.isSecret),
-    }));
+    const data = rows.map((r) => {
+      const isSecret = r.settingKey.includes('credential') || r.settingKey.includes('secret');
+      return {
+        id: r.id,
+        key: r.settingKey,
+        value: isSecret ? maskSecretValue(r.settingValue) : r.settingValue,
+        description: r.description,
+        isSecret,
+      };
+    });
     sendJson(res, data, responseOptions);
     return true;
   }
@@ -59,19 +61,20 @@ export const handleSettingsRoutes: RouteHandler = async (req, res, url, ctx) => 
   if (req.method === 'GET' && getMatch) {
     const key = getMatch[1];
     const rows = await query<SettingRow>(
-      `SELECT id, setting_key AS settingKey, setting_value AS settingValue, description, is_secret AS isSecret FROM settings WHERE setting_key = ?`,
+      'SELECT id, `key` AS settingKey, `value` AS settingValue, description FROM settings WHERE `key` = ?',
       [key],
     );
     if (!rows[0]) {
-      throw new AppError(404, 'resource_not_found', { field: 'settingKey', key }, ErrorCodes.RESOURCE_NOT_FOUND);
+      throw new AppError(404, 'resource_not_found', { field: 'key', key }, ErrorCodes.RESOURCE_NOT_FOUND);
     }
     const r = rows[0];
+    const isSecret = r.settingKey.includes('credential') || r.settingKey.includes('secret');
     sendJson(res, {
       id: r.id,
       key: r.settingKey,
-      value: r.isSecret ? maskSecretValue(r.settingValue) : r.settingValue,
+      value: isSecret ? maskSecretValue(r.settingValue) : r.settingValue,
       description: r.description,
-      isSecret: Boolean(r.isSecret),
+      isSecret,
     }, responseOptions);
     return true;
   }
@@ -82,25 +85,23 @@ export const handleSettingsRoutes: RouteHandler = async (req, res, url, ctx) => 
     const body = await readJsonBody(req);
     const value = body.value !== undefined ? JSON.stringify(body.value) : undefined;
     const description = body.description as string | undefined;
-    const isSecret = body.isSecret !== undefined ? (body.isSecret ? 1 : 0) : undefined;
 
     if (value === undefined) {
       throw new AppError(400, 'missing_required_field', { field: 'value' }, ErrorCodes.MISSING_REQUIRED_FIELD);
     }
 
-    const existing = await query<{ id: number }>('SELECT id FROM settings WHERE setting_key = ?', [key]);
+    const existing = await query<{ id: number }>('SELECT id FROM settings WHERE `key` = ?', [key]);
 
     if (existing[0]) {
-      const sets = ['setting_value = ?'];
+      const sets = ['`value` = ?'];
       const params: unknown[] = [value];
       if (description !== undefined) { sets.push('description = ?'); params.push(description); }
-      if (isSecret !== undefined) { sets.push('is_secret = ?'); params.push(isSecret); }
       if (ctx.operator) { sets.push('updated_by = ?'); params.push(ctx.operator.id); }
-      await query(`UPDATE settings SET ${sets.join(', ')} WHERE setting_key = ?`, [...params, key]);
+      await query(`UPDATE settings SET ${sets.join(', ')} WHERE \`key\` = ?`, [...params, key]);
     } else {
       await query(
-        'INSERT INTO settings (setting_key, setting_value, description, is_secret, updated_by) VALUES (?, ?, ?, ?, ?)',
-        [key, value, description || null, isSecret ?? 0, ctx.operator?.id || null],
+        'INSERT INTO settings (`key`, `value`, description, updated_by) VALUES (?, ?, ?, ?)',
+        [key, value, description || null, ctx.operator?.id || null],
       );
     }
 

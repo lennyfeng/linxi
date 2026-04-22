@@ -36,6 +36,7 @@ import {
   getDistinctCounterparties,
   batchCreateTransactions as batchCreateRepo,
   getExchangeRate as getExchangeRateRepo,
+  getGlobalStats as getGlobalStatsRepo,
 } from '../repository/ledger.repository.js';
 
 function ensureExistingResource<T>(resource: T | null | undefined, fieldName: string, id: number): T {
@@ -70,6 +71,8 @@ function getListFilters(query: JsonBody) {
     importBatchId: query.importBatchId || query.import_batch_id ? Number(query.importBatchId || query.import_batch_id) : null,
     transactionId: query.transactionId || query.transaction_id ? Number(query.transactionId || query.transaction_id) : null,
     externalTransactionId: query.externalTransactionId || query.external_transaction_id ? Number(query.externalTransactionId || query.external_transaction_id) : null,
+    projectName: query.projectName || query.project_name ? String(query.projectName || query.project_name) : '',
+    counterpartyName: query.counterpartyName || query.counterparty_name ? String(query.counterpartyName || query.counterparty_name) : '',
   };
 }
 
@@ -354,4 +357,8 @@ export async function getExchangeRateSvc(query: JsonBody = {}) {
   const targetCurrency = String(query.targetCurrency || query.target_currency || 'CNY');
   const rateDate = String(query.rateDate || query.rate_date || new Date().toISOString().slice(0, 10));
   return await getExchangeRateRepo(sourceCurrency, targetCurrency, rateDate);
+}
+
+export async function globalStats() {
+  return await getGlobalStatsRepo();
 }

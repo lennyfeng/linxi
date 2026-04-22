@@ -174,7 +174,7 @@ export async function listDepartments(): Promise<Department[]> {
       sort_order AS sortOrder,
       created_at AS createdAt
     FROM departments
-    WHERE deleted_at IS NULL OR deleted_at = '0000-00-00 00:00:00'
+    WHERE deleted_at IS NULL
     ORDER BY sort_order ASC, id ASC`,
   );
 }

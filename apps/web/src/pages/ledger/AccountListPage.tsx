@@ -1,18 +1,22 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Col,
   Drawer,
   Form,
   Input,
   message,
+  Row,
   Select,
   Space,
+  Statistic,
   Table,
   Tag,
   Typography,
 } from 'antd';
-import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, RightOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '@/api/client';
 
 interface Account {
@@ -40,6 +44,7 @@ const accountTypes = [
 ];
 
 const AccountListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -49,7 +54,7 @@ const AccountListPage: React.FC = () => {
   const fetch = useCallback(() => {
     setLoading(true);
     apiClient
-      .get('/ledger/accounts?pageSize=200')
+      .get('/ledger/accounts?pageSize=100')
       .then((r) => setAccounts(r.data?.data?.list ?? []))
       .finally(() => setLoading(false));
   }, []);
@@ -130,31 +135,78 @@ const AccountListPage: React.FC = () => {
     {
       title: '',
       key: 'actions',
-      width: 60,
+      width: 140,
       render: (_: unknown, record: Account) => (
-        <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+        <Space>
+          <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+          <Button type="link" icon={<RightOutlined />} onClick={() => navigate(`/ledger/transactions?account=${record.id}`)}>Transactions</Button>
+        </Space>
       ),
     },
   ];
 
+  const totals = useMemo(() => {
+    let assets = 0, liabilities = 0;
+    for (const a of accounts) {
+      if (a.status !== 'active') continue;
+      if (a.accountType === 'credit_card') {
+        liabilities += a.currentBalance;
+      } else {
+        assets += a.currentBalance;
+      }
+    }
+    return { assets, liabilities, netWorth: assets - liabilities };
+  }, [accounts]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Account[]>();
+    for (const a of accounts) {
+      const key = a.accountType || 'other';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(a);
+    }
+    return Array.from(map.entries());
+  }, [accounts]);
+
   return (
     <div style={{ padding: 24 }}>
+      {/* Stats Header */}
+      <Row gutter={24} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card><Statistic title="Total Assets" value={totals.assets} precision={2} prefix="¥" valueStyle={{ color: '#FF8C42', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title="Total Liabilities" value={totals.liabilities} precision={2} prefix="¥" valueStyle={{ color: '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title="Net Worth" value={totals.netWorth} precision={2} prefix="¥" valueStyle={{ color: totals.netWorth >= 0 ? '#FF8C42' : '#52C41A', fontWeight: 600, fontFamily: 'DIN Alternate, monospace' }} /></Card>
+        </Col>
+      </Row>
+
       <Card
-        title={<Typography.Title level={4} style={{ margin: 0 }}>账户管理</Typography.Title>}
+        title={<Typography.Title level={4} style={{ margin: 0 }}>Account Management</Typography.Title>}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新建账户
+            New Account
           </Button>
         }
       >
-        <Table
-          dataSource={accounts}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-          size="middle"
-        />
+        {grouped.map(([type, list]) => (
+          <div key={type} style={{ marginBottom: 24 }}>
+            <Typography.Text strong style={{ fontSize: 14, color: '#6B7B8D', marginBottom: 8, display: 'block' }}>
+              {accountTypes.find((t) => t.value === type)?.label ?? type}
+            </Typography.Text>
+            <Table
+              dataSource={list}
+              columns={columns}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+              size="middle"
+              showHeader={list === grouped[0]?.[1]}
+            />
+          </div>
+        ))}
       </Card>
 
       <Drawer

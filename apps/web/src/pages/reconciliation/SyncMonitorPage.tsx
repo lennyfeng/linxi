@@ -39,7 +39,7 @@ const SyncMonitorPage: React.FC = () => {
   const loadJobs = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/api/sync-jobs');
+      const res = await apiClient.get('/sync-jobs');
       setJobs(res.data?.data ?? []);
     } catch { /* ignore */ }
     setLoading(false);
@@ -49,7 +49,7 @@ const SyncMonitorPage: React.FC = () => {
 
   const handleTrigger = async (jobId: number) => {
     try {
-      await apiClient.post(`/api/sync-jobs/${jobId}/trigger`);
+      await apiClient.post(`/sync-jobs/${jobId}/trigger`);
       message.success('任务已触发');
       setTimeout(loadJobs, 2000);
     } catch { message.error('触发失败'); }
@@ -59,7 +59,7 @@ const SyncMonitorPage: React.FC = () => {
     setLogDrawer({ open: true, jobId, jobName });
     setLogsLoading(true);
     try {
-      const res = await apiClient.get(`/api/sync-jobs/${jobId}/logs`);
+      const res = await apiClient.get(`/sync-jobs/${jobId}/logs`);
       setLogs(res.data?.data ?? []);
     } catch { /* ignore */ }
     setLogsLoading(false);

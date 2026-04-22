@@ -7,6 +7,7 @@ import { syncPaymentRequests } from '../../external/lingxing/sync-payment-reques
 import { syncDeliveryOrders } from '../../external/lingxing/sync-delivery-orders.js';
 import { syncSuppliers } from '../../external/lingxing/sync-suppliers.js';
 import { syncLemonCloudInvoices } from '../../external/lemoncloud/sync-invoices.js';
+import { listSuppliers } from './repository/reconciliation.repository.js';
 import {
   addInvoiceDeliveryRelation,
   addInvoicePaymentRequestRelation,
@@ -53,6 +54,11 @@ export const reconciliationModule = {
 
 export const handleReconciliationRoutes: RouteHandler = async (req, res, url, ctx) => {
   const responseOptions = { requestId: ctx.requestId };
+
+  if (req.method === 'GET' && url.pathname === '/reconciliation/suppliers') {
+    sendJson(res, await listSuppliers(), responseOptions);
+    return true;
+  }
 
   if (req.method === 'GET' && url.pathname === '/reconciliation/purchase-orders') {
     sendJson(res, await getPurchaseOrders(), responseOptions);

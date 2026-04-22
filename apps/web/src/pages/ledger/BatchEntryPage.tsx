@@ -44,10 +44,10 @@ const BatchEntryPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    apiClient.get('/ledger/accounts?pageSize=200').then((r) => {
+    apiClient.get('/ledger/accounts?pageSize=100').then((r) => {
       setAccounts((r.data?.data?.list ?? []).map((a: any) => ({ value: a.id, label: a.accountName })));
     });
-    apiClient.get('/ledger/categories?pageSize=500').then((r) => {
+    apiClient.get('/ledger/categories?pageSize=100').then((r) => {
       setCategories((r.data?.data?.list ?? []).map((c: any) => ({ value: c.id, label: c.categoryName })));
     });
   }, []);

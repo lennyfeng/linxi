@@ -14,34 +14,52 @@ import type {
   StatusSnapshotPayload,
 } from '../../../common/entity-types.js';
 
+export async function listSuppliers() {
+  return await query(
+    `SELECT
+      id,
+      name,
+      contact_name AS contact,
+      phone,
+      address,
+      remark,
+      CASE WHEN status = 1 THEN 'active' ELSE 'inactive' END AS status,
+      synced_at AS syncedAt
+    FROM lx_suppliers
+    ORDER BY name ASC`,
+  );
+}
+
 export async function listPurchaseOrders(): Promise<PurchaseOrder[]> {
   return await query<PurchaseOrder>(
     `SELECT
-      id,
-      order_no AS orderNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason
-    FROM purchase_orders
-    ORDER BY id DESC`,
+      po.id,
+      po.po_number AS orderNo,
+      COALESCE(s.name, '') AS supplierName,
+      COALESCE(po.total_amount, 0) AS amount,
+      po.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason
+    FROM lx_purchase_orders po
+    LEFT JOIN lx_suppliers s ON po.supplier_id = s.id
+    ORDER BY po.order_date DESC, po.id DESC`,
   );
 }
 
 export async function getPurchaseOrderById(id: number): Promise<PurchaseOrder | null> {
   const rows = await query<PurchaseOrder>(
     `SELECT
-      id,
-      order_no AS orderNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason,
-      source_updated_at AS sourceUpdatedAt
-    FROM purchase_orders
-    WHERE id = ?`,
+      po.id,
+      po.po_number AS orderNo,
+      COALESCE(s.name, '') AS supplierName,
+      COALESCE(po.total_amount, 0) AS amount,
+      po.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason,
+      po.synced_at AS sourceUpdatedAt
+    FROM lx_purchase_orders po
+    LEFT JOIN lx_suppliers s ON po.supplier_id = s.id
+    WHERE po.id = ?`,
     [id],
   );
 
@@ -51,31 +69,33 @@ export async function getPurchaseOrderById(id: number): Promise<PurchaseOrder | 
 export async function listPaymentRequests(): Promise<PaymentRequest[]> {
   return await query<PaymentRequest>(
     `SELECT
-      id,
-      request_no AS requestNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason
-    FROM payment_requests
-    ORDER BY id DESC`,
+      pr.id,
+      pr.request_number AS requestNo,
+      COALESCE(s.name, '') AS supplierName,
+      COALESCE(pr.amount, 0) AS amount,
+      pr.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason
+    FROM lx_payment_requests pr
+    LEFT JOIN lx_suppliers s ON pr.supplier_id = s.id
+    ORDER BY pr.request_date DESC, pr.id DESC`,
   );
 }
 
 export async function getPaymentRequestById(id: number): Promise<PaymentRequest | null> {
   const rows = await query<PaymentRequest>(
     `SELECT
-      id,
-      request_no AS requestNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason,
-      source_updated_at AS sourceUpdatedAt
-    FROM payment_requests
-    WHERE id = ?`,
+      pr.id,
+      pr.request_number AS requestNo,
+      COALESCE(s.name, '') AS supplierName,
+      COALESCE(pr.amount, 0) AS amount,
+      pr.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason,
+      pr.synced_at AS sourceUpdatedAt
+    FROM lx_payment_requests pr
+    LEFT JOIN lx_suppliers s ON pr.supplier_id = s.id
+    WHERE pr.id = ?`,
     [id],
   );
 
@@ -85,31 +105,31 @@ export async function getPaymentRequestById(id: number): Promise<PaymentRequest 
 export async function listDeliveryOrders(): Promise<DeliveryOrder[]> {
   return await query<DeliveryOrder>(
     `SELECT
-      id,
-      order_no AS orderNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason
-    FROM delivery_orders
-    ORDER BY id DESC`,
+      d.id,
+      d.delivery_number AS orderNo,
+      COALESCE(d.destination, '') AS supplierName,
+      0 AS amount,
+      d.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason
+    FROM lx_delivery_orders d
+    ORDER BY d.ship_date DESC, d.id DESC`,
   );
 }
 
 export async function getDeliveryOrderById(id: number): Promise<DeliveryOrder | null> {
   const rows = await query<DeliveryOrder>(
     `SELECT
-      id,
-      order_no AS orderNo,
-      supplier_name AS supplierName,
-      amount,
-      invoice_status AS invoiceStatus,
-      reminder_disabled AS reminderDisabled,
-      reminder_disabled_reason AS reminderDisabledReason,
-      source_updated_at AS sourceUpdatedAt
-    FROM delivery_orders
-    WHERE id = ?`,
+      d.id,
+      d.delivery_number AS orderNo,
+      COALESCE(d.destination, '') AS supplierName,
+      0 AS amount,
+      d.status AS invoiceStatus,
+      0 AS reminderDisabled,
+      NULL AS reminderDisabledReason,
+      d.synced_at AS sourceUpdatedAt
+    FROM lx_delivery_orders d
+    WHERE d.id = ?`,
     [id],
   );
 

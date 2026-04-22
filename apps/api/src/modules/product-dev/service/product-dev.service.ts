@@ -181,7 +181,7 @@ function normalizeSync(body: JsonBody) {
     projectId: Number(body.projectId),
     syncStatus: (body.syncStatus as string) || 'pending',
     syncedBy: (body.syncedBy as string) || null,
-    syncTime: (body.syncTime as string) || null,
+    syncTime: body.syncTime ? String(body.syncTime).replace('T', ' ').replace('Z', '').replace(/\.\d+$/, '') : null,
     resultMessage: (body.resultMessage as string) || null,
   };
 }

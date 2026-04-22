@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -9,8 +9,9 @@ import {
   Tree,
   Typography,
 } from 'antd';
-import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, RightOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '@/api/client';
 
 interface Category {
@@ -22,9 +23,23 @@ interface Category {
   status: string;
 }
 
+interface CategoryAmount {
+  id: number;
+  name: string;
+  amount: number;
+  count: number;
+  percentage: number;
+}
+
+const fmtAmt = (n: number) =>
+  Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const CategoryPage: React.FC = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expenseAmounts, setExpenseAmounts] = useState<CategoryAmount[]>([]);
+  const [incomeAmounts, setIncomeAmounts] = useState<CategoryAmount[]>([]);
   const [addingParent, setAddingParent] = useState<string | null>(null);
   const [addingName, setAddingName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -33,12 +48,29 @@ const CategoryPage: React.FC = () => {
   const fetch = useCallback(() => {
     setLoading(true);
     apiClient
-      .get('/ledger/categories?pageSize=500')
+      .get('/ledger/categories?pageSize=100')
       .then((r) => setCategories(r.data?.data?.list ?? []))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { fetch(); }, [fetch]);
+
+  // Fetch category amounts
+  useEffect(() => {
+    const thisYear = new Date().getFullYear();
+    apiClient.get('/ledger/reports/category-breakdown', { params: { startDate: `${thisYear}-01-01`, endDate: `${thisYear}-12-31`, type: 'expense' } })
+      .then((r) => setExpenseAmounts((r.data?.data ?? r.data)?.items ?? []));
+    apiClient.get('/ledger/reports/category-breakdown', { params: { startDate: `${thisYear}-01-01`, endDate: `${thisYear}-12-31`, type: 'income' } })
+      .then((r) => setIncomeAmounts((r.data?.data ?? r.data)?.items ?? []));
+  }, []);
+
+  const amountMap = useMemo(() => {
+    const map = new Map<number, CategoryAmount>();
+    for (const a of [...expenseAmounts, ...incomeAmounts]) {
+      map.set(a.id, a);
+    }
+    return map;
+  }, [expenseAmounts, incomeAmounts]);
 
   const buildTree = (type: string): DataNode[] => {
     const items = categories.filter((c) => c.categoryType === type);
@@ -59,6 +91,7 @@ const CategoryPage: React.FC = () => {
   };
 
   const renderNode = (cat: Category) => {
+    const amt = amountMap.get(cat.id);
     if (editingId === cat.id) {
       return (
         <Input
@@ -80,11 +113,22 @@ const CategoryPage: React.FC = () => {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {cat.categoryName}
+        {amt && (
+          <span style={{ color: '#999', fontSize: 12, fontFamily: 'DIN Alternate, monospace', marginLeft: 4 }}>
+            ¥{fmtAmt(amt.amount)} ({amt.count})
+          </span>
+        )}
         <Button
           type="text"
           size="small"
           icon={<EditOutlined />}
           onClick={(e) => { e.stopPropagation(); setEditingId(cat.id); setEditingName(cat.categoryName); }}
+        />
+        <Button
+          type="text"
+          size="small"
+          icon={<RightOutlined />}
+          onClick={(e) => { e.stopPropagation(); navigate(`/ledger/transactions?category=${cat.id}`); }}
         />
         {!cat.parentId && (
           <Button
