@@ -5,6 +5,7 @@ import { handleUsersRoutes } from './modules/users/index.js';
 import { handleLedgerRoutes } from './modules/ledger/index.js';
 import { handleReconciliationRoutes } from './modules/reconciliation/index.js';
 import { handleProductDevRoutes } from './modules/product-dev/index.js';
+import { handleAsinOpportunityRoutes } from './modules/asin-opportunities/index.js';
 import { handleSavedViewsRoutes } from './modules/saved-views/index.js';
 import { handleSettingsRoutes } from './modules/settings/index.js';
 import { handleDashboardRoutes } from './modules/dashboard/index.js';
@@ -58,6 +59,7 @@ const server = createServer(async (req, res) => {
       (await handleLedgerRoutes(req, res, url, ctx)) ||
       (await handleReconciliationRoutes(req, res, url, ctx)) ||
       (await handleProductDevRoutes(req, res, url, ctx)) ||
+      (await handleAsinOpportunityRoutes(req, res, url, ctx)) ||
       (await handleSettingsRoutes(req, res, url, ctx)) ||
       (await handleDashboardRoutes(req, res, url, ctx)) ||
       (await handleNotificationsRoutes(req, res, url, ctx)) ||

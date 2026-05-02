@@ -15,8 +15,13 @@ import {
   deleteSync,
   getProfitCalculations,
   getProjectDetail,
+  getProjectProfitCalculations,
+  getProjectQuotes,
+  getProjectSamples,
+  getProjectSyncRecords,
   getProjects,
   getQuotes,
+  getSamples,
   getSyncRecords,
   updateProfitCalculation,
   updateProject,
@@ -85,6 +90,30 @@ export const handleProductDevRoutes: RouteHandler = async (req, res, url, ctx) =
   if (req.method === 'GET' && url.pathname.match(/^\/product-dev\/projects\/\d+\/pre-sync-check$/)) {
     const id = getIdFromPath(url.pathname, '/product-dev/projects/');
     sendJson(res, await getPreSyncCheck(id), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname.match(/^\/product-dev\/projects\/\d+\/samples$/)) {
+    const id = getIdFromPath(url.pathname, '/product-dev/projects/');
+    sendJson(res, await getProjectSamples(id), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname.match(/^\/product-dev\/projects\/\d+\/quotes$/)) {
+    const id = getIdFromPath(url.pathname, '/product-dev/projects/');
+    sendJson(res, await getProjectQuotes(id), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname.match(/^\/product-dev\/projects\/\d+\/profit-calculations$/)) {
+    const id = getIdFromPath(url.pathname, '/product-dev/projects/');
+    sendJson(res, await getProjectProfitCalculations(id), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname.match(/^\/product-dev\/projects\/\d+\/sync-records$/)) {
+    const id = getIdFromPath(url.pathname, '/product-dev/projects/');
+    sendJson(res, await getProjectSyncRecords(id), responseOptions);
     return true;
   }
 
@@ -176,6 +205,11 @@ export const handleProductDevRoutes: RouteHandler = async (req, res, url, ctx) =
   if (req.method === 'DELETE' && url.pathname.startsWith('/product-dev/sync-records/')) {
     const id = getIdFromPath(url.pathname, '/product-dev/sync-records/');
     sendJson(res, await deleteSync(id), responseOptions);
+    return true;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/product-dev/samples') {
+    sendJson(res, await getSamples(), responseOptions);
     return true;
   }
 

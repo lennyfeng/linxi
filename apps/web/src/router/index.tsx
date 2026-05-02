@@ -42,10 +42,19 @@ const WorkspacePage = lazy(() => import('@/pages/reconciliation/WorkspacePage'))
 const SyncMonitorPage = lazy(() => import('@/pages/reconciliation/SyncMonitorPage'));
 
 // Product Dev
+const ProductDevOverviewPage = lazy(() => import('@/pages/product-dev/ProductDevOverviewPage'));
 const ProjectListPage = lazy(() => import('@/pages/product-dev/ProjectListPage'));
 const KanbanPage = lazy(() => import('@/pages/product-dev/KanbanPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/product-dev/ProjectDetailPage'));
 const ProjectFormPage = lazy(() => import('@/pages/product-dev/ProjectFormPage'));
+const QuotesPage = lazy(() => import('@/pages/product-dev/QuotesPage'));
+const SamplesPage = lazy(() => import('@/pages/product-dev/SamplesPage'));
+const ProfitPage = lazy(() => import('@/pages/product-dev/ProfitPage'));
+const ProductApprovalPage = lazy(() => import('@/pages/product-dev/ProductApprovalPage'));
+const SyncPage = lazy(() => import('@/pages/product-dev/SyncPage'));
+const AsinBatchListPage = lazy(() => import('@/pages/product-dev/asin-opportunities/AsinBatchListPage'));
+const AsinBatchCreatePage = lazy(() => import('@/pages/product-dev/asin-opportunities/AsinBatchCreatePage'));
+const AsinBatchDetailPage = lazy(() => import('@/pages/product-dev/asin-opportunities/AsinBatchDetailPage'));
 
 // Settings & Others
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
@@ -108,11 +117,21 @@ const AppRouter: React.FC = () => {
           <Route path="/reconciliation/suppliers" element={<SupplierListPage />} />
 
           {/* Product Dev */}
-          <Route path="/product-dev" element={<Navigate to="/product-dev/projects" replace />} />
+          <Route path="/product-dev" element={<Navigate to="/product-dev/overview" replace />} />
+          <Route path="/product-dev/overview" element={<ProductDevOverviewPage />} />
           <Route path="/product-dev/projects" element={<ProjectListPage />} />
           <Route path="/product-dev/kanban" element={<KanbanPage />} />
           <Route path="/product-dev/projects/new" element={<ProjectFormPage />} />
+          <Route path="/product-dev/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/product-dev/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/product-dev/quotes" element={<QuotesPage />} />
+          <Route path="/product-dev/samples" element={<SamplesPage />} />
+          <Route path="/product-dev/profit" element={<ProfitPage />} />
+          <Route path="/product-dev/approvals" element={<ProductApprovalPage />} />
+          <Route path="/product-dev/sync" element={<SyncPage />} />
+          <Route path="/product-dev/asin-opportunities" element={<AsinBatchListPage />} />
+          <Route path="/product-dev/asin-opportunities/new" element={<AsinBatchCreatePage />} />
+          <Route path="/product-dev/asin-opportunities/:id" element={<AsinBatchDetailPage />} />
 
           {/* Settings & Others */}
           <Route path="/settings" element={<SettingsPage />} />

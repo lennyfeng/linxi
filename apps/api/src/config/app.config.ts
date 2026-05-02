@@ -9,6 +9,11 @@ export interface AppConfig {
     user: string;
     password: string;
   };
+  sellerSprite: {
+    apiKey: string;
+    baseUrl: string;
+    timeoutMs: number;
+  };
 }
 
 export function getAppConfig(): AppConfig {
@@ -22,6 +27,11 @@ export function getAppConfig(): AppConfig {
       name: process.env.DB_NAME || 'internal_platform',
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || 'root',
+    },
+    sellerSprite: {
+      apiKey: process.env.SELLERSPRITE_API_KEY || '',
+      baseUrl: process.env.SELLERSPRITE_API_URL || 'https://api.sellersprite.com',
+      timeoutMs: Number(process.env.SELLERSPRITE_TIMEOUT_MS || 15000),
     },
   };
 }

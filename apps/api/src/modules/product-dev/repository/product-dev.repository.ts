@@ -357,6 +357,21 @@ export async function deleteProfitCalculationRecord(id: number): Promise<void> {
   await query('DELETE FROM profit_calculations WHERE id = ?', [id]);
 }
 
+export async function listSampleRecords(): Promise<SampleRecord[]> {
+  return await query<SampleRecord>(
+    `SELECT
+      id,
+      project_id AS projectId,
+      round_no AS roundNo,
+      supplier_name AS supplierName,
+      sample_fee AS sampleFee,
+      review_result AS reviewResult,
+      improvement_notes AS improvementNotes
+    FROM sample_records
+    ORDER BY id DESC`,
+  );
+}
+
 export async function listSampleRecordsByProjectId(projectId: number): Promise<SampleRecord[]> {
   return await query<SampleRecord>(
     `SELECT

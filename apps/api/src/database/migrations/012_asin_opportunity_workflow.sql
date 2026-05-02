@@ -1,0 +1,130 @@
+-- 012_asin_opportunity_workflow.sql: ASIN opportunity analysis workflow
+
+CREATE TABLE IF NOT EXISTS `asin_analysis_batches` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `batch_no` VARCHAR(50) NOT NULL,
+  `name` VARCHAR(200) NOT NULL,
+  `marketplace` VARCHAR(20) NOT NULL DEFAULT 'US',
+  `product_direction` VARCHAR(200) NULL,
+  `target_category` VARCHAR(200) NULL,
+  `status` VARCHAR(50) NOT NULL DEFAULT 'submitted',
+  `total_count` INT NOT NULL DEFAULT 0,
+  `analyzed_count` INT NOT NULL DEFAULT 0,
+  `recommended_count` INT NOT NULL DEFAULT 0,
+  `rejected_count` INT NOT NULL DEFAULT 0,
+  `created_by` INT UNSIGNED NULL,
+  `remark` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_batch_no` (`batch_no`),
+  KEY `idx_marketplace_status` (`marketplace`, `status`),
+  KEY `idx_created_by` (`created_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `asin_analysis_items` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `batch_id` INT UNSIGNED NOT NULL,
+  `asin` VARCHAR(20) NOT NULL,
+  `marketplace` VARCHAR(20) NOT NULL DEFAULT 'US',
+  `product_title` VARCHAR(500) NULL,
+  `brand` VARCHAR(200) NULL,
+  `image_url` TEXT NULL,
+  `product_url` TEXT NULL,
+  `category` VARCHAR(300) NULL,
+  `price` DECIMAL(12,2) NULL,
+  `rating` DECIMAL(3,2) NULL,
+  `review_count` INT NULL,
+  `monthly_sales` INT NULL,
+  `monthly_revenue` DECIMAL(14,2) NULL,
+  `bsr` INT NULL,
+  `analysis_status` VARCHAR(50) NOT NULL DEFAULT 'pending',
+  `workflow_status` VARCHAR(50) NOT NULL DEFAULT 'pending',
+  `market_score` DECIMAL(5,2) NULL,
+  `competition_score` DECIMAL(5,2) NULL,
+  `design_score` DECIMAL(5,2) NULL,
+  `risk_score` DECIMAL(5,2) NULL,
+  `opportunity_score` DECIMAL(5,2) NULL,
+  `recommendation` VARCHAR(50) NULL,
+  `recommendation_reason` TEXT NULL,
+  `last_error` TEXT NULL,
+  `analyzed_at` TIMESTAMP NULL DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_batch_id` (`batch_id`),
+  KEY `idx_asin_marketplace` (`asin`, `marketplace`),
+  KEY `idx_workflow_status` (`workflow_status`),
+  KEY `idx_analysis_status` (`analysis_status`),
+  CONSTRAINT `fk_asin_items_batch` FOREIGN KEY (`batch_id`) REFERENCES `asin_analysis_batches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `asin_analysis_snapshots` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `item_id` INT UNSIGNED NOT NULL,
+  `source` VARCHAR(100) NOT NULL,
+  `payload_json` JSON NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_item_id` (`item_id`),
+  CONSTRAINT `fk_asin_snapshot_item` FOREIGN KEY (`item_id`) REFERENCES `asin_analysis_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `asin_analysis_reviews` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `item_id` INT UNSIGNED NOT NULL,
+  `reviewer_id` INT UNSIGNED NULL,
+  `round_name` VARCHAR(50) NOT NULL,
+  `action` VARCHAR(50) NOT NULL,
+  `from_status` VARCHAR(50) NULL,
+  `to_status` VARCHAR(50) NULL,
+  `reason` VARCHAR(300) NULL,
+  `comment` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_item_id` (`item_id`),
+  KEY `idx_round_name` (`round_name`),
+  CONSTRAINT `fk_asin_review_item` FOREIGN KEY (`item_id`) REFERENCES `asin_analysis_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `product_design_evaluations` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `item_id` INT UNSIGNED NOT NULL,
+  `designer_id` INT UNSIGNED NULL,
+  `target_user` VARCHAR(500) NULL,
+  `usage_scenario` TEXT NULL,
+  `pain_points` TEXT NULL,
+  `design_direction` TEXT NULL,
+  `material_suggestion` TEXT NULL,
+  `structure_suggestion` TEXT NULL,
+  `package_suggestion` TEXT NULL,
+  `selling_points` TEXT NULL,
+  `attachments_json` JSON NULL,
+  `status` VARCHAR(50) NOT NULL DEFAULT 'draft',
+  `review_comment` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_design_item` (`item_id`),
+  CONSTRAINT `fk_design_item` FOREIGN KEY (`item_id`) REFERENCES `asin_analysis_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sample_evaluations` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `item_id` INT UNSIGNED NOT NULL,
+  `evaluator_id` INT UNSIGNED NULL,
+  `target_price` DECIMAL(12,2) NULL,
+  `estimated_cost` DECIMAL(12,2) NULL,
+  `gross_margin` DECIMAL(5,2) NULL,
+  `moq` INT NULL,
+  `supplier` VARCHAR(300) NULL,
+  `sample_cost` DECIMAL(12,2) NULL,
+  `sample_cycle_days` INT NULL,
+  `decision` VARCHAR(50) NULL,
+  `comment` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sample_item` (`item_id`),
+  CONSTRAINT `fk_sample_item` FOREIGN KEY (`item_id`) REFERENCES `asin_analysis_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

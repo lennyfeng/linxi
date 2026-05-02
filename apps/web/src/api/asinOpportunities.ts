@@ -1,0 +1,35 @@
+import apiClient from '@/api/client';
+
+export const asinOpportunityApi = {
+  listBatches: (params: object = {}) => apiClient.get('/asin-opportunities/batches', { params }),
+  exportBatches: (params: object = {}) => apiClient.get('/asin-opportunities/batches/export', { params, responseType: 'blob' }),
+  createBatch: (payload: Record<string, unknown>) => apiClient.post('/asin-opportunities/batches', payload),
+  getBatch: (id: number | string) => apiClient.get(`/asin-opportunities/batches/${id}`),
+  getBatchMetrics: (id: number | string) => apiClient.get(`/asin-opportunities/batches/${id}/metrics`),
+  getBatchDecisionHistory: (id: number | string, params: object = {}) => apiClient.get(`/asin-opportunities/batches/${id}/decision-history`, { params }),
+  listBatchDecisionActions: (params: object = {}) => apiClient.get('/asin-opportunities/batch-decision-actions', { params }),
+  createBatchDecisionActions: (payload: Record<string, unknown>) => apiClient.post('/asin-opportunities/batch-decision-actions', payload),
+  updateBatchDecisionActionStatus: (id: number | string, payload: Record<string, unknown>) => apiClient.patch(`/asin-opportunities/batch-decision-actions/${id}/status`, payload),
+  updateBatchMeta: (id: number | string, payload: Record<string, unknown>) => apiClient.patch(`/asin-opportunities/batches/${id}/meta`, payload),
+  listBatchItems: (id: number | string, params: object = {}) => apiClient.get(`/asin-opportunities/batches/${id}/items`, { params }),
+  exportBatchItems: (id: number | string, params: object = {}) => apiClient.get(`/asin-opportunities/batches/${id}/items/export`, { params, responseType: 'blob' }),
+  getItemReport: (id: number | string) => apiClient.get(`/asin-opportunities/items/${id}/report`),
+  createProjectFromItem: (id: number | string) => apiClient.post(`/asin-opportunities/items/${id}/create-project`),
+  retryAnalysis: (id: number | string) => apiClient.post(`/asin-opportunities/items/${id}/retry-analysis`),
+  retryBatchFailed: (id: number | string) => apiClient.post(`/asin-opportunities/batches/${id}/retry-failed`),
+  makeDecision: (id: number | string, payload: Record<string, unknown>) => apiClient.post(`/asin-opportunities/items/${id}/decision`, payload),
+  saveDesignEvaluation: (id: number | string, payload: Record<string, unknown>) => apiClient.post(`/asin-opportunities/items/${id}/design-evaluation`, payload),
+  reviewDesignEvaluation: (id: number | string, payload: Record<string, unknown>) => apiClient.post(`/asin-opportunities/items/${id}/design-review`, payload),
+  saveSampleEvaluation: (id: number | string, payload: Record<string, unknown>) => apiClient.post(`/asin-opportunities/items/${id}/sample-evaluation`, payload),
+  listSavedViews: (params: object = {}) => apiClient.get('/asin-opportunities/saved-views', { params }),
+  createSavedView: (payload: Record<string, unknown>) => apiClient.post('/asin-opportunities/saved-views', payload),
+  updateSavedView: (id: number | string, payload: Record<string, unknown>) => apiClient.patch(`/asin-opportunities/saved-views/${id}`, payload),
+  deleteSavedView: (id: number | string) => apiClient.delete(`/asin-opportunities/saved-views/${id}`),
+  getHealthTrend: (params: object = {}) => apiClient.get('/asin-opportunities/health-trend', { params }),
+  getHealthAlertConfigs: (params: object = {}) => apiClient.get('/asin-opportunities/health-alert-configs', { params }),
+  createHealthAlertConfig: (payload: Record<string, unknown>) => apiClient.post('/asin-opportunities/health-alert-configs', payload),
+  getBatchAlerts: (params: object = {}) => apiClient.get('/asin-opportunities/batch-alerts', { params }),
+  getIntegrationStatus: () => apiClient.get('/asin-opportunities/integration-status'),
+};
+
+export default asinOpportunityApi;

@@ -72,8 +72,10 @@ const menuConfig: MenuItem[] = [
     icon: <Rocket size={18} />,
     permission: 'product-dev',
     children: [
-      { path: '/product-dev/projects', name: '项目列表', icon: <></> },
-      { path: '/product-dev/kanban', name: '看板', icon: <></> },
+      { path: '/product-dev/overview', name: '总览', icon: <></> },
+      { path: '/product-dev/projects', name: '项目管理', icon: <></> },
+      { path: '/product-dev/kanban', name: '流程看板', icon: <></> },
+      { path: '/product-dev/asin-opportunities', name: 'ASIN机会分析', icon: <></> },
     ],
   },
   {

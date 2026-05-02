@@ -21,6 +21,7 @@ import {
   listProjects,
   listQuotes,
   listQuotesByProjectId,
+  listSampleRecords,
   listSampleRecordsByProjectId,
   listSyncRecords,
   listSyncRecordsByProjectId,
@@ -265,6 +266,10 @@ export async function deleteProfitCalculation(id: number) {
   return { deleted: true };
 }
 
+export async function getSamples() {
+  return await listSampleRecords();
+}
+
 export async function createSample(body: JsonBody) {
   const payload = normalizeSample(body);
   await ensureProjectExists(payload.projectId);
@@ -388,15 +393,52 @@ export async function transitionProjectStatus(id: number, body: JsonBody) {
 }
 
 export async function approveProject(id: number, body: JsonBody) {
-  return await transitionProjectStatus(id, { targetStatus: '立项通过', ...body });
+  const result = await transitionProjectStatus(id, { targetStatus: '立项通过', ...body });
+  await createSyncRecord({
+    projectId: id,
+    syncStatus: 'approval_passed',
+    syncedBy: (body?.operator as string) || null,
+    syncTime: null,
+    resultMessage: (body?.reason as string) || '立项审批通过',
+  });
+  return result;
 }
 
 export async function rejectProject(id: number, body: JsonBody) {
-  return await transitionProjectStatus(id, { targetStatus: '已驳回', reason: body?.reason || '' });
+  const reason = (body?.reason as string) || '未填写驳回原因';
+  const result = await transitionProjectStatus(id, { targetStatus: '已驳回', reason });
+  await createSyncRecord({
+    projectId: id,
+    syncStatus: 'approval_rejected',
+    syncedBy: (body?.operator as string) || null,
+    syncTime: null,
+    resultMessage: reason,
+  });
+  return result;
 }
 
 export async function getPreSyncCheck(id: number) {
   await ensureProjectRecordExists(id);
   const errors = await validatePreSync(id);
   return { projectId: id, ready: errors.length === 0, errors };
+}
+
+export async function getProjectSamples(projectId: number) {
+  await ensureProjectExists(projectId);
+  return await listSampleRecordsByProjectId(projectId);
+}
+
+export async function getProjectQuotes(projectId: number) {
+  await ensureProjectExists(projectId);
+  return await listQuotesByProjectId(projectId);
+}
+
+export async function getProjectProfitCalculations(projectId: number) {
+  await ensureProjectExists(projectId);
+  return await listProfitCalculationsByProjectId(projectId);
+}
+
+export async function getProjectSyncRecords(projectId: number) {
+  await ensureProjectExists(projectId);
+  return await listSyncRecordsByProjectId(projectId);
 }

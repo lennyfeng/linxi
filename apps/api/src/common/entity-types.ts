@@ -97,6 +97,8 @@ export interface ProductDevProject {
   targetPrice: number | null;
   grossMarginTarget: number | null;
   projectStatus: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface SupplierQuote {
